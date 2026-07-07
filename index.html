@@ -6,7 +6,8 @@
     <title>번창 기원상</title>
     <meta name="description" content="새 시작을 응원하는 번창 기원상">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f4c64f'/%3E%3Ccircle cx='32' cy='34' r='18' fill='%23f6c7ad'/%3E%3Cellipse cx='32' cy='34' rx='11' ry='8' fill='%23e89178'/%3E%3Ccircle cx='27' cy='33' r='2' fill='%23551b16'/%3E%3Ccircle cx='37' cy='33' r='2' fill='%23551b16'/%3E%3C/svg%3E">
-    <link rel="preload" href="assets/ritual-table-pig-transparent.png" as="image">
+    <link rel="preload" href="assets/asset-ritual-table.png" as="image">
+    <link rel="preload" href="assets/loading-pig-head.json" as="fetch" crossorigin>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -14,12 +15,26 @@
 
     <template id="setup-template">
       <section class="screen setup-screen">
-        <div class="table-stage setup-table">
-          <img src="assets/ritual-table-pig-transparent.png" alt="돼지머리가 놓인 제사상" class="ritual-table">
+        <div class="setup-step is-active" data-setup-step="decorate">
+          <div class="table-stage setup-table empty-altar" data-table-stage data-drop-zone>
+            <img src="assets/asset-ritual-table.png" alt="돼지머리가 놓인 빈 고사상" class="ritual-table">
+            <div class="decor-layer" data-decor-layer></div>
+          </div>
+
+          <div class="asset-dock" data-asset-palette></div>
+          <div class="setup-decor-actions">
+            <button class="secondary-action" type="button" data-reset-decoration>초기화</button>
+            <button class="primary-action setup-next" type="button" data-next-setup>다음</button>
+          </div>
         </div>
 
-        <form class="scroll-form" data-setup-form>
-          <div class="hanging-scroll ritual-scroll editable-ritual">
+        <form class="setup-form setup-step" data-setup-step="blessing" data-setup-form>
+          <div class="table-stage setup-table setup-review-table" data-table-stage>
+            <img src="assets/asset-ritual-table.png" alt="차려진 고사상" class="ritual-table">
+            <div class="decor-layer" data-decor-layer></div>
+          </div>
+
+          <div class="hanging-scroll ritual-scroll editable-ritual ritual-confirm-scroll">
             <p class="ritual-date" data-ritual-date></p>
             <p>
               오늘 저희
@@ -35,7 +50,11 @@
             <p>오늘 저희가 마음과 뜻을 모아 정성껏 제물을 마련하여 올리오니, 기쁘게 받아두시고 저희의 간절한 소망을 이루어 주시옵소서.</p>
             <p class="sanghyang">尙饗(상향)</p>
           </div>
-          <button class="primary-action" type="submit">상 차리기</button>
+
+          <div class="setup-confirm-actions">
+            <button class="secondary-action" type="button" data-back-setup>다시 꾸미기</button>
+            <button class="primary-action" type="submit">확인</button>
+          </div>
         </form>
       </section>
     </template>
@@ -44,18 +63,24 @@
       <section class="screen main-screen">
         <header class="blessing-panel">
           <div class="hanging-scroll main-blessing-scroll" aria-label="대박 기원 족자">
+            <span class="table-id" data-table-id></span>
+            <p class="ritual-date" data-ritual-date></p>
             <p><strong data-group></strong></p>
-            <p>사고 없이 대박 기원</p>
+            <p data-blessing></p>
+            <small>도착한 응원 <b data-message-count>0</b>개</small>
           </div>
         </header>
 
-        <button class="table-stage table-button" type="button" data-random-message aria-label="돼지머리에서 응원 부적 뽑기">
-          <img src="assets/ritual-table-pig-transparent.png" alt="돼지머리가 놓인 제사상" class="ritual-table">
+        <div class="table-stage table-display" data-table-stage>
+          <img src="assets/asset-ritual-table.png" alt="돼지머리가 놓인 제사상" class="ritual-table">
+          <div class="decor-layer" data-decor-layer></div>
           <span class="paper-stack" data-paper-stack aria-hidden="true"></span>
-        </button>
+          <button class="pig-hotspot" type="button" data-pig-hotspot></button>
+        </div>
 
         <div class="action-bar">
           <button class="primary-action" type="button" data-owner-only data-invite>사람들 초대하기</button>
+          <button class="secondary-action" type="button" data-owner-edit>상 다시 꾸미기</button>
           <button class="primary-action" type="button" data-guest-only data-open-message>메시지 작성하기</button>
         </div>
       </section>
@@ -79,39 +104,17 @@
       </dialog>
     </template>
 
-    <template id="charm-modal-template">
-      <dialog class="modal" data-charm-modal>
-        <div class="modal-card charm-card">
-          <div class="cheer-poster" data-talisman>
-            <div class="poster-corners" aria-hidden="true"></div>
-            <div class="poster-confetti" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span>
-            </div>
-            <div class="poster-badge" aria-hidden="true">대박</div>
-            <p class="poster-title">황금 웃는 돼지머리</p>
-            <div class="poster-pig" aria-hidden="true">
-              <span class="pig-ear left"></span>
-              <span class="pig-ear right"></span>
-              <span class="pig-face">
-                <span class="pig-eye left"></span>
-                <span class="pig-eye right"></span>
-                <span class="pig-nose"></span>
-                <span class="pig-smile"></span>
-              </span>
-            </div>
-            <div class="poster-message-scroll">
-              <p data-charm-message></p>
-              <b data-charm-author></b>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="secondary-action" type="button" data-close-charm>닫기</button>
-            <button class="primary-action" type="button" data-save-charm>저장</button>
-          </div>
+    <template id="message-list-modal-template">
+      <dialog class="modal" data-message-list-modal>
+        <div class="modal-card message-list-card">
+          <button class="icon-close" type="button" data-close-message-list aria-label="닫기">×</button>
+          <h2>도착한 응원</h2>
+          <ul class="message-list" data-message-list></ul>
         </div>
       </dialog>
     </template>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

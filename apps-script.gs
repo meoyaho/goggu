@@ -4,8 +4,8 @@ const SHEET_NAMES = {
 };
 
 const HEADERS = {
-  tables: ["table_id", "date", "owner_name"],
-  messages: ["table_id", "user_name", "message"],
+  tables: ["table_id", "date", "owner_name", "blessing", "decoration_json"],
+  messages: ["table_id", "user_name", "message", "created_at"],
 };
 
 function doGet(event) {
@@ -49,9 +49,11 @@ function createOrUpdateTable_(params) {
   const tableId = clean_(params.table_id);
   const date = clean_(params.date);
   const ownerName = clean_(params.owner_name);
+  const blessing = clean_(params.blessing);
+  const decorationJson = clean_(params.decoration_json);
 
-  if (!tableId || !date || !ownerName) {
-    throw new Error("table_id, date, owner_name are required");
+  if (!tableId || !date || !ownerName || !blessing || !decorationJson) {
+    throw new Error("table_id, date, owner_name, blessing, decoration_json are required");
   }
 
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.tables);
@@ -59,9 +61,9 @@ function createOrUpdateTable_(params) {
   const existingRow = values.findIndex((row, index) => index > 0 && row[0] === tableId);
 
   if (existingRow >= 1) {
-    sheet.getRange(existingRow + 1, 1, 1, 3).setValues([[tableId, date, ownerName]]);
+    sheet.getRange(existingRow + 1, 1, 1, 5).setValues([[tableId, date, ownerName, blessing, decorationJson]]);
   } else {
-    sheet.appendRow([tableId, date, ownerName]);
+    sheet.appendRow([tableId, date, ownerName, blessing, decorationJson]);
   }
 
   return { ok: true };
@@ -71,6 +73,7 @@ function addMessage_(params) {
   const tableId = clean_(params.table_id);
   const userName = clean_(params.user_name);
   const message = clean_(params.message);
+  const createdAt = clean_(params.created_at) || new Date().toISOString();
 
   if (!tableId || !userName || !message) {
     throw new Error("table_id, user_name, message are required");
@@ -78,7 +81,7 @@ function addMessage_(params) {
 
   SpreadsheetApp.getActive()
     .getSheetByName(SHEET_NAMES.messages)
-    .appendRow([tableId, userName, message]);
+    .appendRow([tableId, userName, message, createdAt]);
 
   return { ok: true };
 }
@@ -96,12 +99,36 @@ function ensureSheets_() {
       firstRow[0] === "table_id" &&
       firstRow[1] === "owner_name" &&
       firstRow[2] === "wish";
+    const hasThreeColumnTableHeaders =
+      key === "tables" &&
+      firstRow[0] === "table_id" &&
+      firstRow[1] === "date" &&
+      firstRow[2] === "owner_name" &&
+      !firstRow[3];
+    const hasThreeColumnMessageHeaders =
+      key === "messages" &&
+      firstRow[0] === "table_id" &&
+      firstRow[1] === "user_name" &&
+      firstRow[2] === "message" &&
+      !firstRow[3];
 
     if (!hasHeaders) {
       if (hasLegacyTableHeaders && sheet.getLastRow() > 1) {
         const legacyRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
-        const migratedRows = legacyRows.map((row) => [row[0], currentDate_(), row[1]]);
-        sheet.getRange(2, 1, migratedRows.length, 3).setValues(migratedRows);
+        const migratedRows = legacyRows.map((row) => [row[0], currentDate_(), row[1], "사고 없이 대박 기원", defaultDecorationJson_()]);
+        sheet.getRange(2, 1, migratedRows.length, 5).setValues(migratedRows);
+      }
+
+      if (hasThreeColumnTableHeaders && sheet.getLastRow() > 1) {
+        const tableRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+        const migratedRows = tableRows.map((row) => [row[0], row[1], row[2], "사고 없이 대박 기원", defaultDecorationJson_()]);
+        sheet.getRange(2, 1, migratedRows.length, 5).setValues(migratedRows);
+      }
+
+      if (hasThreeColumnMessageHeaders && sheet.getLastRow() > 1) {
+        const messageRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+        const migratedRows = messageRows.map((row) => [row[0], row[1], row[2], ""]);
+        sheet.getRange(2, 1, migratedRows.length, 4).setValues(migratedRows);
       }
 
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -142,4 +169,8 @@ function clean_(value) {
 
 function currentDate_() {
   return Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd");
+}
+
+function defaultDecorationJson_() {
+  return '{"pig":"gold","food":"fruit","incense":"single","extra":"flowers"}';
 }

@@ -1,31 +1,60 @@
 const CONFIG = {
-  appsScriptUrl: "https://script.google.com/macros/s/AKfycbyuT9FO9q8YTY3GnYbydcfdQ4LeB9STttCT7njLJ0ptyHSlPEQu939sA3c7zXjwBUUMLA/exec",
+  appsScriptUrl: ["localhost", "127.0.0.1"].includes(location.hostname)
+    ? ""
+    : "https://script.google.com/macros/s/AKfycbyKbriB7Mks47IKfizo5viOQDTDk42GWCfoF9yRnsn3865Li-QPwz6WkliztLLw3v_FUA/exec",
+  publicBaseUrl: "https://meoyaho.github.io/goggu/",
 };
 
 const TABLES_KEY = "pig_head_tables";
 const MESSAGES_KEY = "pig_head_messages";
-const $app = document.querySelector("#app");
+const PRESET_TABLE_IDS = Array.from({ length: 20 }, (_, index) => `gosa-${String(index + 1).padStart(2, "0")}`);
+const DEFAULT_BLESSING = "사고 없이 대박 기원";
+const DEFAULT_DECORATION = {
+  pig: "gold",
+  placements: [],
+};
 
+const TABLE_ASSET = "assets/asset-ritual-table.png";
+const PIG_ASSET = "assets/asset-pig-head.png";
+const DECORATION_ASSETS = [
+  { group: "food", value: "apples", label: "사과상", image: "assets/asset-apples.png", width: 22, height: 16 },
+  { group: "food", value: "rice", label: "쌀밥", image: "assets/asset-rice-bowl.png", width: 17, height: 15 },
+  { group: "food", value: "ricecake", label: "떡상", image: "assets/asset-ricecake-bowl.png", width: 22, height: 15 },
+  { group: "food", value: "pears", label: "배상", image: "assets/asset-pear-bowl.png", width: 18, height: 15 },
+  { group: "ritual", value: "candle", label: "촛대", image: "assets/asset-candle.png", width: 9, height: 31 },
+  { group: "ritual", value: "incense", label: "향로", image: "assets/asset-incense-burner.png", width: 15, height: 27 },
+  { group: "ritual", value: "cup", label: "잔", image: "assets/asset-wood-cup.png", width: 11, height: 13 },
+  { group: "extra", value: "flowers", label: "꽃병", image: "assets/asset-flower-vase.png", width: 15, height: 22 },
+  { group: "extra", value: "pouch", label: "복주머니", image: "assets/asset-lucky-pouch.png", width: 17, height: 20 },
+];
+const PLACED_ASSET_SCALE = 3;
+const PLACEMENT_AREA = {
+  minX: -18,
+  maxX: 118,
+  minY: -24,
+  maxY: 102,
+};
+
+const $app = document.querySelector("#app");
 const params = new URLSearchParams(window.location.search);
-const hasTableParam = params.has("table");
-const tableId = params.get("table") || makeTableId();
-const mode = params.get("mode") === "owner" || !hasTableParam ? "owner" : "guest";
+const tableParam = params.get("table");
+const tableId = PRESET_TABLE_IDS.includes(tableParam) ? tableParam : null;
+const mode = tableId && params.get("mode") === "owner" ? "owner" : "guest";
 
 const state = {
   table: null,
   messages: [],
-  currentCharm: null,
+  setupDecoration: null,
 };
-
-if (!params.get("table")) {
-  params.set("table", tableId);
-  params.set("mode", "owner");
-  history.replaceState(null, "", `${location.pathname}?${params.toString()}`);
-}
 
 init();
 
 async function init() {
+  if (!tableId) {
+    renderNfcStart();
+    return;
+  }
+
   renderLoading();
   await loadData();
 
@@ -44,38 +73,114 @@ async function init() {
 
 async function loadData() {
   const result = await api("get", { table_id: tableId });
-  state.table = result.table || null;
-  state.messages = result.messages || [];
+  state.table = normalizeTable(result.table);
+  state.messages = (result.messages || []).map(normalizeMessage);
 }
 
 function renderLoading() {
   $app.innerHTML = `
     <section class="screen loading-screen">
-      <div class="hanging-scroll loading-scroll">상을 차리는 중입니다</div>
+      <div class="loading-pig" data-lottie-loader aria-hidden="true">
+        <div class="loading-pig-fallback">
+          <span class="loader-ear loader-ear-left"></span>
+          <span class="loader-ear loader-ear-right"></span>
+          <span class="loader-face">
+            <span class="loader-eye loader-eye-left"></span>
+            <span class="loader-eye loader-eye-right"></span>
+            <span class="loader-snout"></span>
+            <span class="loader-smile"></span>
+          </span>
+        </div>
+      </div>
+      <p class="loading-caption">상을 차리는 중입니다</p>
+    </section>
+  `;
+  mountLottieLoaders();
+}
+
+function mountLottieLoaders() {
+  document.querySelectorAll("[data-lottie-loader]").forEach((container) => {
+    if (!window.lottie || container.dataset.lottieMounted) return;
+
+    container.dataset.lottieMounted = "true";
+    container.textContent = "";
+    window.lottie.loadAnimation({
+      container,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      path: "assets/loading-pig-head.json",
+    });
+  });
+}
+
+function renderNfcStart() {
+  $app.innerHTML = `
+    <section class="screen nfc-screen">
+      <div class="hanging-scroll nfc-scroll">
+        <p class="nfc-title">NFC 태그로 시작해주세요</p>
+        <p>이 페이지는 20개의 지정된 고사상 링크로만 시작합니다.</p>
+      </div>
     </section>
   `;
 }
 
 function renderEmpty() {
-  $app.innerHTML = `<section class="screen"><div class="empty-state">아직 차려지지 않은 상입니다</div></section>`;
+  $app.innerHTML = `
+    <section class="screen">
+      <div class="empty-state">
+        <strong>아직 차려지지 않은 상입니다</strong>
+        <span>주인장이 NFC 태그로 먼저 접속해 상을 차리면 응원을 남길 수 있습니다.</span>
+      </div>
+    </section>
+  `;
 }
 
 function renderSetup() {
   $app.replaceChildren(clone("setup-template"));
   const form = document.querySelector("[data-setup-form]");
-  fillRitualDates();
-  syncGroupInputs();
+  const table = state.table || {
+    owner_name: "",
+    blessing: DEFAULT_BLESSING,
+    decoration: { ...DEFAULT_DECORATION },
+  };
+
+  state.setupDecoration = cloneDecorationForSetup(table.decoration, Boolean(state.table));
+  fillRitualDates(table.date);
+  form.elements.owner_name.value = table.owner_name || "";
+  syncGroupInputs(table.owner_name || "");
+  renderAssetPalette();
+  renderDecorationPreview(state.setupDecoration);
+  wireSetupDrag();
+
+  document.querySelector("[data-reset-decoration]").addEventListener("click", () => {
+    state.setupDecoration = { pig: "gold", placements: [] };
+    renderDecorationPreview(state.setupDecoration);
+  });
+
+  document.querySelector("[data-next-setup]").addEventListener("click", () => {
+    showSetupStep("blessing");
+    renderDecorationPreview(state.setupDecoration);
+  });
+
+  document.querySelector("[data-back-setup]").addEventListener("click", () => {
+    showSetupStep("decorate");
+    renderDecorationPreview(state.setupDecoration);
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
-    const groupName = clean(formData.get("owner_name"));
-    if (!groupName) return;
+    const ownerName = clean(formData.get("owner_name"));
+    if (!ownerName) return;
 
+    renderLoading();
     await api("createOrUpdateTable", {
       table_id: tableId,
-      date: getRitualDateValue(),
-      owner_name: groupName,
+      date: table.date || getRitualDateValue(),
+      owner_name: ownerName,
+      blessing: table.blessing || DEFAULT_BLESSING,
+      decoration_json: JSON.stringify(state.setupDecoration),
     });
 
     await loadData();
@@ -83,26 +188,312 @@ function renderSetup() {
   });
 }
 
+function showSetupStep(stepName) {
+  document.querySelectorAll("[data-setup-step]").forEach((step) => {
+    step.classList.toggle("is-active", step.dataset.setupStep === stepName);
+  });
+}
+
 function renderMain() {
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
-  document.querySelectorAll("[data-group]").forEach((element) => {
-    element.textContent = state.table.owner_name;
-  });
+
+  document.querySelector("[data-table-id]").textContent = tableId.toUpperCase();
+  document.querySelector("[data-group]").textContent = state.table.owner_name;
+  document.querySelector("[data-blessing]").textContent = state.table.blessing;
+  document.querySelector("[data-message-count]").textContent = String(state.messages.length);
   document.querySelector("[data-owner-only]").hidden = mode !== "owner";
+  document.querySelector("[data-owner-edit]").hidden = mode !== "owner";
   document.querySelector("[data-guest-only]").hidden = mode === "owner";
 
+  renderDecorationPreview(state.table.decoration);
   renderPaperStack();
 
-  document.querySelectorAll("[data-random-message]").forEach((button) => {
-    button.addEventListener("click", openRandomCharm);
+  const pigHotspot = document.querySelector("[data-pig-hotspot]");
+  pigHotspot.setAttribute("aria-label", mode === "owner" ? "응원 메시지 목록 보기" : "응원 메시지 작성하기");
+  pigHotspot.addEventListener("click", () => {
+    if (mode === "owner") {
+      openMessageList();
+    } else {
+      openMessageModal();
+    }
   });
 
-  const inviteButton = document.querySelector("[data-invite]");
-  if (inviteButton) inviteButton.addEventListener("click", inviteGuests);
+  document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
+  document.querySelector("[data-owner-edit]").addEventListener("click", renderSetup);
+  document.querySelector("[data-open-message]").addEventListener("click", openMessageModal);
+}
 
-  const messageButton = document.querySelector("[data-open-message]");
-  if (messageButton) messageButton.addEventListener("click", openMessageModal);
+function renderAssetPalette() {
+  const root = document.querySelector("[data-asset-palette]");
+  root.innerHTML = "";
+
+  DECORATION_ASSETS.forEach((asset) => {
+    const button = document.createElement("button");
+    button.className = "asset-token";
+    button.type = "button";
+    button.draggable = true;
+    button.dataset.assetGroup = asset.group;
+    button.dataset.assetValue = asset.value;
+    button.setAttribute("aria-label", `${asset.label} 올리기`);
+
+    const icon = document.createElement("img");
+    icon.className = "asset-token-image";
+    icon.src = asset.image;
+    icon.alt = "";
+    icon.draggable = false;
+
+    button.append(icon);
+    root.append(button);
+  });
+}
+
+function wireSetupDrag() {
+  const dropZone = document.querySelector("[data-drop-zone]");
+  const palette = document.querySelector("[data-asset-palette]");
+
+  palette.addEventListener("dragstart", (event) => {
+    const token = event.target.closest("[data-asset-group]");
+    if (!token) return;
+    event.dataTransfer.setData("application/json", JSON.stringify(getAssetFromElement(token)));
+    event.dataTransfer.effectAllowed = "copy";
+
+    const image = token.querySelector(".asset-token-image");
+    if (image) event.dataTransfer.setDragImage(image, image.clientWidth / 2, image.clientHeight / 2);
+  });
+
+  palette.addEventListener("click", (event) => {
+    const token = event.target.closest("[data-asset-group]");
+    if (!token) return;
+    addPlacement(getAssetFromElement(token), 50, 54);
+  });
+
+  palette.addEventListener("pointerdown", startPalettePointerDrag);
+  dropZone.addEventListener("dragover", (event) => event.preventDefault());
+  dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const asset = JSON.parse(event.dataTransfer.getData("application/json") || "{}");
+    addPlacementFromPoint(asset, event.clientX, event.clientY);
+  });
+  dropZone.addEventListener("pointerdown", startPlacementPointerDrag);
+}
+
+function startPalettePointerDrag(event) {
+  if (event.pointerType === "mouse") return;
+  const token = event.target.closest("[data-asset-group]");
+  if (!token) return;
+
+  event.preventDefault();
+  const asset = getAssetFromElement(token);
+  const ghost = makeDragGhost(token, event.clientX, event.clientY);
+
+  function move(moveEvent) {
+    moveGhost(ghost, moveEvent.clientX, moveEvent.clientY);
+  }
+
+  function end(endEvent) {
+    ghost.remove();
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+
+    const dropZone = document.querySelector("[data-drop-zone]");
+    const rect = dropZone.getBoundingClientRect();
+    if (isPointInsideRect(endEvent.clientX, endEvent.clientY, rect)) {
+      addPlacementFromPoint(asset, endEvent.clientX, endEvent.clientY);
+    }
+  }
+
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end, { once: true });
+}
+
+function startPlacementPointerDrag(event) {
+  const target = event.target.closest("[data-placement-id]");
+  if (!target || !state.setupDecoration) return;
+
+  event.preventDefault();
+  const id = target.dataset.placementId;
+  const dropZone = document.querySelector("[data-drop-zone]");
+  const palette = document.querySelector("[data-asset-palette]");
+
+  function move(moveEvent) {
+    movePlacementToPoint(id, moveEvent.clientX, moveEvent.clientY, dropZone);
+  }
+
+  function end(endEvent) {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+
+    const paletteRect = palette.getBoundingClientRect();
+    if (isPointInsideRect(endEvent.clientX, endEvent.clientY, paletteRect)) {
+      removePlacement(id);
+    }
+  }
+
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end, { once: true });
+}
+
+function removePlacement(id) {
+  state.setupDecoration.placements = state.setupDecoration.placements.filter((item) => item.id !== id);
+  renderDecorationPreview(state.setupDecoration);
+}
+
+function makeDragGhost(source, x, y) {
+  const sourceImage = source.querySelector(".asset-token-image");
+  const ghost = document.createElement("img");
+  ghost.className = "asset-token-ghost";
+  ghost.src = sourceImage?.src || "";
+  ghost.alt = "";
+  document.body.append(ghost);
+  moveGhost(ghost, x, y);
+  return ghost;
+}
+
+function moveGhost(ghost, x, y) {
+  ghost.style.left = `${x}px`;
+  ghost.style.top = `${y}px`;
+}
+
+function addPlacementFromPoint(asset, clientX, clientY) {
+  const dropZone = document.querySelector("[data-drop-zone]");
+  const rect = dropZone.getBoundingClientRect();
+  const x = ((clientX - rect.left) / rect.width) * 100;
+  const y = ((clientY - rect.top) / rect.height) * 100;
+  addPlacement(asset, x, y);
+}
+
+function addPlacement(asset, x, y) {
+  if (!asset.group || !asset.value || !state.setupDecoration) return;
+
+  const size = getAssetSize(asset);
+  const bounds = getPlacementBounds(size);
+  state.setupDecoration.placements.push({
+    id: `asset_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    group: asset.group,
+    value: asset.value,
+    x: clamp(x - size.width / 2, bounds.minX, bounds.maxX),
+    y: clamp(y - size.height / 2, bounds.minY, bounds.maxY),
+  });
+  renderDecorationPreview(state.setupDecoration);
+}
+
+function movePlacementToPoint(id, clientX, clientY, dropZone) {
+  const placement = state.setupDecoration.placements.find((item) => item.id === id);
+  if (!placement) return;
+
+  const rect = dropZone.getBoundingClientRect();
+  const size = getAssetSize(placement);
+  const bounds = getPlacementBounds(size);
+  placement.x = clamp(((clientX - rect.left) / rect.width) * 100 - size.width / 2, bounds.minX, bounds.maxX);
+  placement.y = clamp(((clientY - rect.top) / rect.height) * 100 - size.height / 2, bounds.minY, bounds.maxY);
+  renderDecorationPreview(state.setupDecoration);
+}
+
+function getAssetFromElement(element) {
+  return {
+    group: element.dataset.assetGroup,
+    value: element.dataset.assetValue,
+  };
+}
+
+function getAssetSize(assetLike) {
+  const asset = findDecorationAsset(assetLike.group, assetLike.value);
+  return {
+    width: (asset?.width || 16) * PLACED_ASSET_SCALE,
+    height: (asset?.height || 16) * PLACED_ASSET_SCALE,
+  };
+}
+
+function getPlacementBounds(size) {
+  return {
+    minX: PLACEMENT_AREA.minX,
+    maxX: PLACEMENT_AREA.maxX - size.width,
+    minY: PLACEMENT_AREA.minY,
+    maxY: PLACEMENT_AREA.maxY - size.height,
+  };
+}
+
+function renderDecorationPreview(decoration) {
+  document.querySelectorAll("[data-table-stage]").forEach((stage) => {
+    const layer = stage.querySelector("[data-decor-layer]");
+    const interactive = stage.hasAttribute("data-drop-zone");
+    layer.innerHTML = "";
+
+    const pig = document.createElement("span");
+    pig.className = "decor-item decor-pig";
+    pig.setAttribute("aria-hidden", "true");
+    pig.append(makeDecorImage(PIG_ASSET));
+    layer.append(pig);
+
+    getPlacements(decoration).forEach((placement) => {
+      const asset = findDecorationAsset(placement.group, placement.value);
+      if (!asset) return;
+
+      const item = document.createElement("span");
+      item.className = `decor-item decor-${placement.group}`;
+      const size = getAssetSize(placement);
+      item.style.left = `${placement.x}%`;
+      item.style.top = `${placement.y}%`;
+      item.style.width = `${size.width}%`;
+      item.style.height = `${size.height}%`;
+      item.setAttribute("aria-hidden", "true");
+      item.append(makeDecorImage(asset.image));
+
+      if (interactive) {
+        item.dataset.placementId = placement.id;
+        item.title = "드래그해서 위치를 바꿀 수 있습니다";
+      }
+
+      layer.append(item);
+    });
+  });
+}
+
+function makeDecorImage(src) {
+  const image = document.createElement("img");
+  image.className = "decor-image";
+  image.src = src;
+  image.alt = "";
+  image.draggable = false;
+  return image;
+}
+
+function findDecorationAsset(group, value) {
+  return DECORATION_ASSETS.find((asset) => asset.group === group && asset.value === value);
+}
+
+function getPlacements(decoration) {
+  return Array.isArray(decoration.placements) ? decoration.placements : [];
+}
+
+function cloneDecorationForSetup(decoration, hasSavedTable) {
+  if (!hasSavedTable) return { pig: "gold", placements: [] };
+
+  return {
+    pig: decoration.pig || "gold",
+    placements: getPlacements(decoration).map((placement) => ({ ...placement })),
+  };
+}
+
+function syncGroupInputs(initialValue = "") {
+  const inputs = [...document.querySelectorAll("[data-group-input]")];
+  inputs.forEach((input) => {
+    input.value = initialValue;
+    input.addEventListener("input", () => {
+      inputs.forEach((target) => {
+        if (target !== input) target.value = input.value;
+      });
+    });
+  });
+}
+
+function isPointInsideRect(x, y, rect) {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function fillRitualDates(dateValue) {
@@ -142,17 +533,6 @@ function getKoreanDateParts(date = new Date()) {
   return { year, month, day };
 }
 
-function syncGroupInputs() {
-  const inputs = [...document.querySelectorAll("[data-group-input]")];
-  inputs.forEach((input) => {
-    input.addEventListener("input", () => {
-      inputs.forEach((target) => {
-        if (target !== input) target.value = input.value;
-      });
-    });
-  });
-}
-
 function renderPaperStack() {
   const stack = document.querySelector("[data-paper-stack]");
   stack.innerHTML = "";
@@ -185,6 +565,7 @@ function openMessageModal() {
       table_id: tableId,
       user_name: userName,
       message,
+      created_at: new Date().toISOString(),
     });
 
     modal.close();
@@ -199,29 +580,47 @@ function openMessageModal() {
   modal.showModal();
 }
 
-function openRandomCharm() {
+function openMessageList() {
+  document.body.append(clone("message-list-modal-template"));
+  const modal = document.querySelector("[data-message-list-modal]");
+  const list = modal.querySelector("[data-message-list]");
+  list.innerHTML = "";
+
   if (!state.messages.length) {
-    showToast("아직 도착한 응원이 없습니다");
-    return;
+    const empty = document.createElement("li");
+    empty.className = "message-empty";
+    empty.textContent = "아직 도착한 응원이 없습니다.";
+    list.append(empty);
+  } else {
+    [...state.messages].reverse().forEach((message) => {
+      const item = document.createElement("li");
+      item.className = "message-item";
+
+      const header = document.createElement("div");
+      header.className = "message-item-header";
+
+      const name = document.createElement("strong");
+      name.textContent = message.user_name;
+
+      const date = document.createElement("time");
+      date.textContent = formatMessageDate(message.created_at);
+
+      const body = document.createElement("p");
+      body.textContent = message.message;
+
+      header.append(name, date);
+      item.append(header, body);
+      list.append(item);
+    });
   }
 
-  state.currentCharm = state.messages[Math.floor(Math.random() * state.messages.length)];
-  document.body.append(clone("charm-modal-template"));
-  const modal = document.querySelector("[data-charm-modal]");
-  modal.querySelector("[data-charm-message]").textContent = state.currentCharm.message;
-  modal.querySelector("[data-charm-author]").textContent = `- ${state.currentCharm.user_name}`;
-  modal.querySelector("[data-close-charm]").addEventListener("click", () => modal.close());
-  modal.querySelector("[data-save-charm]").addEventListener("click", saveCharm);
+  modal.querySelector("[data-close-message-list]").addEventListener("click", () => modal.close());
   modal.addEventListener("close", () => modal.remove(), { once: true });
   modal.showModal();
 }
 
 async function inviteGuests() {
-  const guestUrl = new URL(location.href);
-  guestUrl.searchParams.set("table", tableId);
-  guestUrl.searchParams.delete("mode");
-
-  const text = guestUrl.toString();
+  const text = makeTableUrl(false);
   try {
     await navigator.clipboard.writeText(text);
     showToast("초대 링크를 복사했습니다");
@@ -230,91 +629,13 @@ async function inviteGuests() {
   }
 }
 
-function saveCharm() {
-  if (!state.currentCharm) return;
-  const width = 720;
-  const height = 1080;
-  const message = state.currentCharm.message;
-  const author = escapeXml(`- ${state.currentCharm.user_name}`);
-  const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <defs>
-    <linearGradient id="posterBg" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0" stop-color="#ffe238"/>
-      <stop offset=".55" stop-color="#ffe88f"/>
-      <stop offset="1" stop-color="#ffd326"/>
-    </linearGradient>
-    <linearGradient id="pigWood" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0" stop-color="#dfd0aa"/>
-      <stop offset="1" stop-color="#bba77f"/>
-    </linearGradient>
-  </defs>
-  <rect width="720" height="1080" fill="url(#posterBg)"/>
-  <rect x="14" y="14" width="692" height="1052" fill="none" stroke="#2b1b14" stroke-width="8"/>
-  <rect x="32" y="32" width="656" height="1016" fill="none" stroke="#2b1b14" stroke-width="3"/>
-  <path d="M14 14h96L14 110M706 14h-96l96 96M14 1066h96l-96-96M706 1066h-96l96-96" fill="none" stroke="#2b1b14" stroke-width="5"/>
-  <g transform="translate(360 116)">
-    <rect x="-48" y="-58" width="96" height="120" fill="#ffd827" stroke="#2b1b14" stroke-width="8"/>
-    <rect x="-36" y="-46" width="72" height="96" fill="none" stroke="#a21f15" stroke-width="5"/>
-    <text x="0" y="-8" text-anchor="middle" writing-mode="tb" glyph-orientation-vertical="0" font-size="40" font-family="serif" font-weight="900" fill="#a21f15">대박</text>
-  </g>
-  <g fill="#4db5e8" stroke="#1f1712" stroke-width="5">
-    <rect x="110" y="108" width="16" height="28" rx="4" transform="rotate(58 118 122)"/>
-    <rect x="580" y="84" width="16" height="28" rx="4" fill="#f35c5c" transform="rotate(22 588 98)"/>
-    <rect x="88" y="226" width="16" height="16" rx="3" fill="#fff7e5" transform="rotate(30 96 234)"/>
-    <rect x="610" y="248" width="16" height="16" rx="3" fill="#fff7e5" transform="rotate(-20 618 256)"/>
-  </g>
-  <path d="M70 186c36-80 76-92 118-36M62 250c54-58 108-62 158-14M650 184c-36-80-76-92-118-36M658 250c-54-58-108-62-158-14" fill="none" stroke="#1f1712" stroke-width="7" stroke-linecap="round"/>
-  <text x="360" y="286" text-anchor="middle" font-size="58" font-family="serif" font-weight="900" fill="#1f1712">황금 웃는 돼지머리</text>
-
-  <g transform="translate(360 574)">
-    <ellipse cx="-98" cy="-62" rx="48" ry="104" fill="url(#pigWood)" transform="rotate(-14)"/>
-    <ellipse cx="98" cy="-62" rx="48" ry="104" fill="url(#pigWood)" transform="rotate(14)"/>
-    <ellipse cx="0" cy="0" rx="156" ry="145" fill="url(#pigWood)"/>
-    <path d="M-72-30q18-26 38 0M34-30q18-26 38 0" fill="none" stroke="#1f1712" stroke-width="7" stroke-linecap="round"/>
-    <path d="M-118 20h-64M-112 44h-70M118 20h64M112 44h70" stroke="#ffe629" stroke-width="10" stroke-linecap="round"/>
-    <ellipse cx="0" cy="44" rx="74" ry="48" fill="#865315"/>
-    <ellipse cx="-24" cy="36" rx="13" ry="9" fill="#fffdf2"/>
-    <ellipse cx="24" cy="36" rx="13" ry="9" fill="#fffdf2"/>
-    <path d="M-48 74q48 30 96 0" fill="none" stroke="#fffdf2" stroke-width="7" stroke-linecap="round"/>
-  </g>
-
-  <g>
-    <path d="M92 854h536l18 28-18 28H92l-18-28z" fill="#ffd817" stroke="#1f1712" stroke-width="7"/>
-    <text x="360" y="884" text-anchor="middle" font-size="34" font-family="serif" font-weight="900" fill="#1f1712">
-      ${wrapSvgText(message, 360, 0, 42)}
-    </text>
-    <text x="360" y="974" text-anchor="middle" font-size="28" font-family="serif" font-weight="900" fill="#6f1f1a">${author}</text>
-  </g>
-</svg>`.trim();
-
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `cheer-${tableId}.svg`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function wrapSvgText(text, x, y, lineHeight) {
-  const chars = [...text];
-  const lines = [];
-  let line = "";
-  chars.forEach((char) => {
-    line += char;
-    if (line.length >= 9 || /[.!?。？！]$/.test(line)) {
-      lines.push(line);
-      line = "";
-    }
-  });
-  if (line) lines.push(line);
-
-  const startY = y - ((lines.length - 1) * lineHeight) / 2;
-  return lines
-    .slice(0, 5)
-    .map((part, index) => `<tspan x="${x}" dy="${index === 0 ? startY : lineHeight}">${escapeXml(part)}</tspan>`)
-    .join("");
+function makeTableUrl(owner) {
+  const url = new URL(CONFIG.publicBaseUrl || location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("table", tableId);
+  if (owner) url.searchParams.set("mode", "owner");
+  return url.toString();
 }
 
 async function api(action, payload) {
@@ -340,6 +661,8 @@ function localApi(action, payload) {
       table_id: payload.table_id,
       date: payload.date,
       owner_name: payload.owner_name,
+      blessing: payload.blessing,
+      decoration_json: payload.decoration_json,
     };
     localStorage.setItem(TABLES_KEY, JSON.stringify(tables));
     return Promise.resolve({ ok: true });
@@ -350,13 +673,100 @@ function localApi(action, payload) {
       table_id: payload.table_id,
       user_name: payload.user_name,
       message: payload.message,
-      created_at: new Date().toISOString(),
+      created_at: payload.created_at || new Date().toISOString(),
     });
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
     return Promise.resolve({ ok: true });
   }
 
   return Promise.resolve({ ok: false });
+}
+
+function normalizeTable(table) {
+  if (!table) return null;
+
+  return {
+    table_id: table.table_id,
+    date: table.date,
+    owner_name: table.owner_name,
+    blessing: table.blessing || DEFAULT_BLESSING,
+    decoration: parseDecoration(table.decoration_json),
+  };
+}
+
+function normalizeMessage(message) {
+  return {
+    table_id: message.table_id,
+    user_name: message.user_name || "익명",
+    message: message.message || "",
+    created_at: message.created_at || "",
+  };
+}
+
+function parseDecoration(value) {
+  try {
+    const parsed = { ...DEFAULT_DECORATION, ...JSON.parse(value || "{}") };
+    if (Array.isArray(parsed.placements)) {
+      return {
+        pig: parsed.pig || "gold",
+        placements: parsed.placements.map(normalizePlacement).filter(Boolean),
+      };
+    }
+
+    return {
+      pig: parsed.pig || "gold",
+      placements: [
+        parsed.food && normalizePlacement({ id: "legacy_food", group: "food", value: parsed.food, x: 31, y: 54 }),
+        parsed.incense && normalizePlacement({ id: "legacy_incense", group: "ritual", value: parsed.incense, x: 68, y: 32 }),
+        parsed.extra && normalizePlacement({ id: "legacy_extra", group: "extra", value: parsed.extra, x: 15, y: 34 }),
+      ].filter(Boolean),
+    };
+  } catch {
+    return { ...DEFAULT_DECORATION };
+  }
+}
+
+function normalizePlacement(placement) {
+  if (!placement || !placement.group || !placement.value) return null;
+  const normalized = normalizeAssetKey(placement.group, placement.value);
+
+  return {
+    id: placement.id || `asset_${Math.random().toString(36).slice(2, 8)}`,
+    group: normalized.group,
+    value: normalized.value,
+    x: Number.isFinite(Number(placement.x)) ? Number(placement.x) : 40,
+    y: Number.isFinite(Number(placement.y)) ? Number(placement.y) : 48,
+  };
+}
+
+function normalizeAssetKey(group, value) {
+  const key = `${group}:${value}`;
+  const legacy = {
+    "food:fruit": ["food", "apples"],
+    "food:feast": ["food", "ricecake"],
+    "incense:single": ["ritual", "candle"],
+    "incense:triple": ["ritual", "incense"],
+    "incense:blue": ["ritual", "incense"],
+    "extra:coins": ["ritual", "cup"],
+    "extra:flags": ["extra", "pouch"],
+  };
+
+  const mapped = legacy[key];
+  return mapped ? { group: mapped[0], value: mapped[1] } : { group, value };
+}
+
+function formatMessageDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function jsonp(url) {
@@ -397,20 +807,8 @@ function readJson(key, fallback) {
   }
 }
 
-function makeTableId() {
-  return `table_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function clean(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
-}
-
-function escapeXml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }
 
 function showToast(message) {
