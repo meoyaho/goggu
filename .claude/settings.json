@@ -21,7 +21,19 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-money-portrait.png)",
       "Bash(python3 -c \"import json; json.load\\(open\\('public/projects/gosa-offering/scene-1/lottie.json'\\)\\); print\\('lottie OK'\\)\")",
       "Bash(node test_flip_timing.mjs)",
-      "Bash(node test_instant_flip.mjs)"
+      "Bash(node test_instant_flip.mjs)",
+      "Bash(node test_loading.mjs)",
+      "Bash(node test_loading_debug.mjs)",
+      "Bash(timeout 25 node test_loading.mjs)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(shasum loading_200.png loading_3600.png)",
+      "Bash(rm -f \"/private/tmp/claude-501/-Users-jisuryou-Library-Mobile-Documents-com-apple-CloudDocs----02-goods-2607-pig-head/85e2e412-1a52-4bff-97a0-deea4507c54e/scratchpad/loading_\"*.png)",
+      "Bash(node test_loading2.mjs)",
+      "Bash(node test_loading3.mjs)",
+      "Bash(rm -f \"/private/tmp/claude-501/-Users-jisuryou-Library-Mobile-Documents-com-apple-CloudDocs----02-goods-2607-pig-head/85e2e412-1a52-4bff-97a0-deea4507c54e/scratchpad/loading3_\"*.png)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-pig-head-open.png)",
+      "Bash(node test_setup.mjs)",
+      "WebFetch(domain:discuss.pytorch.kr)"
     ]
   }
 }

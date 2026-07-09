@@ -23,6 +23,7 @@ const DEFAULT_DECORATION = {
 
 const TABLE_ASSET = "assets/asset-ritual-table.png";
 const PIG_ASSET = "assets/asset-pig-head.png";
+const PIG_ASSET_OPEN = "assets/asset-pig-head-open.png";
 const MONEY_BILL_PORTRAIT_ASSET = "assets/asset-money-portrait.png";
 const WISH_OFFERING_LOTTIE = "public/projects/gosa-offering/scene-1/lottie.json";
 const TABLE_STAGE_ASPECT_RATIO = 761 / 1254;
@@ -119,13 +120,49 @@ async function loadData() {
 
 function renderLoading() {
   $app.innerHTML = `
-    <section class="screen loading-screen">
-      <div class="loading-pig" aria-hidden="true">
-        <img class="loading-pig-image" src="${PIG_ASSET}" alt="">
-      </div>
+    <section class="screen loading-screen" data-loading-screen>
       <p class="loading-caption">상을 차리는 중입니다</p>
+      <div class="loading-pig-wrap" data-loading-pig-wrap aria-hidden="true">
+        <img class="loading-pig-image" src="${PIG_ASSET_OPEN}" alt="">
+      </div>
     </section>
   `;
+  startLoadingBillDrop();
+}
+
+function startLoadingBillDrop() {
+  const screen = document.querySelector("[data-loading-screen]");
+  const pigWrap = document.querySelector("[data-loading-pig-wrap]");
+  if (!screen || !pigWrap) return;
+
+  const spawn = () => {
+    if (!document.body.contains(screen)) return;
+
+    const screenRect = screen.getBoundingClientRect();
+    const pigRect = pigWrap.getBoundingClientRect();
+    const mouthY = pigRect.top - screenRect.top + pigRect.height * 0.718;
+    const floorY = screenRect.height * 0.8;
+
+    const bill = document.createElement("img");
+    bill.className = "loading-bill";
+    bill.src = MONEY_BILL_PORTRAIT_ASSET;
+    bill.alt = "";
+    const spin = Math.random() < 0.5 ? -1 : 1;
+    bill.style.top = `${mouthY.toFixed(1)}px`;
+    bill.style.setProperty("--drop-x", `${((Math.random() - 0.5) * 100).toFixed(1)}px`);
+    bill.style.setProperty("--drop-y", `${(floorY - mouthY - Math.random() * 24).toFixed(1)}px`);
+    bill.style.setProperty("--drop-rotate", `${(spin * (78 + Math.random() * 24)).toFixed(1)}deg`);
+    bill.style.setProperty("--land-scale-y", `${(0.52 + Math.random() * 0.16).toFixed(2)}`);
+    bill.style.setProperty("--land-scale", `${(1.25 + Math.random() * 0.3).toFixed(2)}`);
+    screen.append(bill);
+
+    const bills = screen.querySelectorAll(".loading-bill");
+    if (bills.length > 22) bills[0].remove();
+
+    setTimeout(spawn, 220);
+  };
+
+  spawn();
 }
 
 function renderNfcStart() {
@@ -226,7 +263,11 @@ function renderMain() {
   document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
   document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
 
-  renderDecorationPreview(state.table.decoration);
+  const showingMoney =
+    ownerMode || showGuestMessages
+      ? state.messages.length > 0
+      : !showGuestMessages && state.guestSubmissionComplete;
+  renderDecorationPreview(state.table.decoration, { openMouth: showingMoney });
   if (ownerMode || showGuestMessages) renderPaperStack();
   if (!ownerMode && state.guestSubmissionComplete && !showGuestMessages) renderWishOffering(false);
   if (!ownerMode && !state.guestSubmissionComplete) loadWishOfferingAnimationData().catch(() => {});
@@ -429,7 +470,7 @@ function getPlacementBounds(size) {
   };
 }
 
-function renderDecorationPreview(decoration) {
+function renderDecorationPreview(decoration, { openMouth = false } = {}) {
   document.querySelectorAll("[data-table-stage]").forEach((stage) => {
     const layer = stage.querySelector("[data-decor-layer]");
     const interactive = stage.hasAttribute("data-drop-zone");
@@ -438,7 +479,7 @@ function renderDecorationPreview(decoration) {
     const pig = document.createElement("span");
     pig.className = "decor-item decor-pig";
     pig.setAttribute("aria-hidden", "true");
-    pig.append(makeDecorImage(PIG_ASSET));
+    pig.append(makeDecorImage(openMouth ? PIG_ASSET_OPEN : PIG_ASSET));
     layer.append(pig);
 
     getPlacements(decoration).forEach((placement) => {
@@ -608,6 +649,7 @@ async function submitMessageForm(event) {
   state.guestSubmissionComplete = true;
   state.guestViewingMessages = false;
   configureGuestActionButton();
+  renderDecorationPreview(state.table.decoration, { openMouth: true });
 
   playWishOfferingAnimation(() => {
     renderMessageFeed();
@@ -627,6 +669,7 @@ async function submitMessageForm(event) {
     form.removeAttribute("aria-hidden");
     state.guestSubmissionComplete = false;
     configureGuestActionButton();
+    renderDecorationPreview(state.table.decoration, { openMouth: false });
     showToast(error.message || "축원을 올리지 못했습니다");
   }
 }
