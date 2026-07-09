@@ -196,7 +196,21 @@ button {
 }
 
 .main-content {
+  position: relative;
   align-content: end;
+}
+
+.wish-lottie-flight {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.wish-lottie-flight svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .screen-footer {
@@ -261,12 +275,33 @@ button {
   width: var(--content-width);
   height: var(--setup-panel-height);
   min-height: 0;
+  position: relative;
+  perspective: 1400px;
+}
+
+.guest-message-panel[hidden],
+.message-feed-panel[hidden] {
+  display: none;
+}
+
+.guest-message-panel.is-offering {
+  pointer-events: none;
+}
+
+.offering-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 8px;
+  transition: transform 760ms cubic-bezier(0.32, 0.68, 0.24, 1);
+}
+
+.offering-face-front {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
   padding: 18px 16px 16px;
   border: 1px solid rgba(91, 66, 48, 0.2);
-  border-radius: 8px;
   background:
     radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.42), transparent 28%),
     radial-gradient(circle at 80% 86%, rgba(124, 87, 48, 0.08), transparent 34%),
@@ -274,9 +309,31 @@ button {
   box-shadow: 0 10px 20px rgba(49, 31, 24, 0.12);
 }
 
-.guest-message-panel[hidden],
-.message-feed-panel[hidden] {
-  display: none;
+.offering-face-back {
+  transform: rotateY(180deg);
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(148, 32, 27, 0.5);
+  background: linear-gradient(160deg, #fbead0, #f3cf8f 55%, #e3ab52);
+  box-shadow: 0 10px 20px rgba(49, 31, 24, 0.12);
+  container-type: size;
+}
+
+.offering-talisman-glyph {
+  font-family: "Gungsuh", "Nanum Myeongjo", serif;
+  font-size: clamp(6rem, 34vw, 9rem);
+  font-size: 74cqh;
+  line-height: 1;
+  font-weight: 900;
+  color: #9c231d;
+}
+
+.guest-message-panel.is-offering .offering-face-front {
+  transform: rotateY(180deg);
+}
+
+.guest-message-panel.is-offering .offering-face-back {
+  transform: rotateY(360deg);
 }
 
 .message-feed {
@@ -738,25 +795,78 @@ button {
 
 .paper-stack {
   left: 50%;
-  top: 38.7%;
-  z-index: 2;
-  width: 25%;
-  height: 13%;
-  transform: translateX(-50%);
+  top: 20.4%;
+  z-index: 7;
   pointer-events: none;
 }
 
 .paper-slip {
   position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(22px, 5.6vw, 34px);
+  aspect-ratio: 238 / 480;
+  transform-origin: top center;
+  filter: drop-shadow(0 4px 6px rgba(43, 23, 19, 0.2));
+  user-select: none;
+}
+
+.wish-offering {
+  position: absolute;
   left: 50%;
-  top: 50%;
-  width: clamp(38px, 10vw, 82px);
-  height: clamp(16px, 4vw, 32px);
-  background: linear-gradient(180deg, #fffdf3, #f0cf78);
-  border: 1px solid rgba(112, 31, 26, 0.3);
-  border-radius: 2px;
-  box-shadow: 0 7px 12px rgba(43, 23, 19, 0.18);
+  top: 20.4%;
+  z-index: 8;
+  width: clamp(24px, 5.9vw, 35px);
+  aspect-ratio: 238 / 480;
+  transform: translate(-50%, -50%) rotate(-8deg);
   transform-origin: center;
+  pointer-events: none;
+  filter: drop-shadow(0 9px 8px rgba(43, 23, 19, 0.22));
+}
+
+.wish-offering.is-flying {
+  animation: wish-offering-rise 980ms cubic-bezier(0.2, 0.78, 0.2, 1) both;
+}
+
+.wish-offering.is-placed {
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.wish-offering.is-placed.is-landing {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-8deg) scale(0.9);
+}
+
+.wish-offering-bill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+@keyframes wish-offering-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 250%) scale(1.2) rotate(5deg);
+  }
+
+  34% {
+    opacity: 1;
+    transform: translate(-50%, 102%) scale(1.08) rotate(-3deg);
+  }
+
+  58% {
+    transform: translate(-50%, 30%) scale(0.98) rotate(8deg) skewX(-5deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(-8deg);
+  }
 }
 
 .action-bar {
@@ -786,6 +896,12 @@ button {
   color: #fffaf0;
   background: linear-gradient(180deg, #b53d2f, #7d241d);
   box-shadow: 0 12px 22px rgba(125, 36, 29, 0.23);
+}
+
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .secondary-action {
@@ -882,11 +998,6 @@ button {
   gap: 8px;
   color: #5b4b3d;
   font-size: 0.86rem;
-}
-
-.message-item-footer time {
-  color: rgba(91, 75, 61, 0.62);
-  font-size: 0.68rem;
 }
 
 .message-item-footer strong {

@@ -7,6 +7,8 @@
     <meta name="description" content="새 시작을 응원하는 번창 기원상">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f4c64f'/%3E%3Ccircle cx='32' cy='34' r='18' fill='%23f6c7ad'/%3E%3Cellipse cx='32' cy='34' rx='11' ry='8' fill='%23e89178'/%3E%3Ccircle cx='27' cy='33' r='2' fill='%23551b16'/%3E%3Ccircle cx='37' cy='33' r='2' fill='%23551b16'/%3E%3C/svg%3E">
     <link rel="preload" href="assets/asset-ritual-table.png" as="image">
+    <link rel="preload" href="assets/asset-money-portrait.png" as="image">
+    <link rel="preload" href="public/projects/gosa-offering/scene-1/lottie.json" as="fetch" crossorigin>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -94,17 +96,22 @@
           </section>
 
           <form class="guest-message-panel" id="guest-message-form" data-guest-message-form hidden>
-            <label>
-              <span>올리는 이</span>
-              <input name="user_name" placeholder="이름을 남겨주세요" maxlength="18" required>
-            </label>
-            <label class="guest-message-body">
-              <span>축원</span>
-              <textarea name="message" placeholder="응원의 말을 적어주세요" maxlength="100" required></textarea>
-            </label>
-            <div class="guest-offering-money" aria-label="가상 축원금">
-              <span>가상 축원금</span>
-              <strong>50,000원</strong>
+            <div class="offering-face offering-face-front">
+              <label>
+                <span>올리는 이</span>
+                <input name="user_name" placeholder="이름을 남겨주세요" maxlength="18" required>
+              </label>
+              <label class="guest-message-body">
+                <span>축원</span>
+                <textarea name="message" placeholder="응원의 말을 적어주세요" maxlength="100" required></textarea>
+              </label>
+              <div class="guest-offering-money" aria-label="가상 축원금">
+                <span>가상 축원금</span>
+                <strong>50,000원</strong>
+              </div>
+            </div>
+            <div class="offering-face offering-face-back" aria-hidden="true">
+              <span class="offering-talisman-glyph">福</span>
             </div>
           </form>
         </div>
@@ -144,6 +151,7 @@
       </dialog>
     </template>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

@@ -23,6 +23,8 @@ const DEFAULT_DECORATION = {
 
 const TABLE_ASSET = "assets/asset-ritual-table.png";
 const PIG_ASSET = "assets/asset-pig-head.png";
+const MONEY_BILL_PORTRAIT_ASSET = "assets/asset-money-portrait.png";
+const WISH_OFFERING_LOTTIE = "public/projects/gosa-offering/scene-1/lottie.json";
 const TABLE_STAGE_ASPECT_RATIO = 761 / 1254;
 const DECORATION_ASSETS = [
   { group: "food", value: "apples", label: "사과상", image: "assets/asset-apples.png", width: 22, height: 16 },
@@ -70,7 +72,18 @@ const state = {
   messages: [],
   setupDecoration: null,
   canEdit: false,
+  guestSubmissionComplete: false,
+  guestViewingMessages: false,
 };
+
+let wishOfferingAnimationDataPromise = null;
+
+function loadWishOfferingAnimationData() {
+  if (!wishOfferingAnimationDataPromise) {
+    wishOfferingAnimationDataPromise = fetch(WISH_OFFERING_LOTTIE).then((res) => res.json());
+  }
+  return wishOfferingAnimationDataPromise;
+}
 
 init();
 
@@ -200,22 +213,28 @@ function renderMain() {
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
   const ownerMode = isOwnerMode();
+  const showGuestMessages = !ownerMode && state.guestViewingMessages;
 
   document.querySelector("[data-main-title]").textContent = `${state.table.owner_name} 대박 기원`;
   document.querySelector("[data-main-subtitle]").textContent = ownerMode
     ? `총 ${state.messages.length}개의 축원이 올라갔습니다`
-    : "친구를 응원하고 좋은 기운을 가져가세요";
+    : showGuestMessages
+      ? "다른 사람들이 올린 축원을 둘러보세요"
+      : "친구를 응원하고 좋은 기운을 가져가세요";
   document.querySelector("[data-owner-only]").hidden = !ownerMode;
   document.querySelector("[data-guest-only]").hidden = ownerMode;
-  document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode;
-  document.querySelector("[data-guest-message-form]").hidden = ownerMode;
+  document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
+  document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
 
   renderDecorationPreview(state.table.decoration);
-  renderPaperStack();
+  if (ownerMode || showGuestMessages) renderPaperStack();
+  if (!ownerMode && state.guestSubmissionComplete && !showGuestMessages) renderWishOffering(false);
+  if (!ownerMode && !state.guestSubmissionComplete) loadWishOfferingAnimationData().catch(() => {});
   renderMessageFeed();
 
   document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
   document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
+  configureGuestActionButton();
 }
 
 function renderAssetPalette() {
@@ -532,14 +551,21 @@ function getKoreanDateParts(date = new Date()) {
 function renderPaperStack() {
   const stack = document.querySelector("[data-paper-stack]");
   stack.innerHTML = "";
-  const visible = state.messages.slice(-14);
+  const visible = state.messages.slice(-9);
+  const count = visible.length;
+  if (!count) return;
+
+  const spread = Math.min(72, 22 + count * 6);
 
   visible.forEach((_, index) => {
-    const slip = document.createElement("span");
+    const slip = document.createElement("img");
     slip.className = "paper-slip";
-    const offset = index - (visible.length - 1) / 2;
-    const rotate = ((index * 19) % 34) - 17;
-    slip.style.transform = `translate(${offset * 10 - 50}%, ${Math.abs(offset) * -3 - 50}%) rotate(${rotate}deg)`;
+    slip.src = MONEY_BILL_PORTRAIT_ASSET;
+    slip.alt = "";
+    const t = count === 1 ? 0.5 : index / (count - 1);
+    const angle = -spread / 2 + spread * t;
+    const jitter = ((index * 13) % 7) - 3;
+    slip.style.transform = `translateX(-50%) rotate(${(angle + jitter).toFixed(1)}deg)`;
     slip.style.zIndex = String(index + 1);
     stack.append(slip);
   });
@@ -566,7 +592,43 @@ function renderMessageFeed() {
 async function submitMessageForm(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  await sendMessageFromForm(form);
+  const formData = new FormData(form);
+  const userName = clean(formData.get("user_name"));
+  const message = clean(formData.get("message"));
+  if (!userName || !message) return;
+
+  const action = document.querySelector("[data-guest-only]");
+  if (action) {
+    action.disabled = true;
+    action.textContent = "올리는 중";
+  }
+
+  form.classList.add("is-offering");
+  form.setAttribute("aria-hidden", "true");
+  state.guestSubmissionComplete = true;
+  state.guestViewingMessages = false;
+  configureGuestActionButton();
+
+  playWishOfferingAnimation(() => {
+    renderMessageFeed();
+    showToast("축원이 올라갔어요");
+  });
+
+  try {
+    await api("addMessage", {
+      table_id: tableId,
+      user_name: userName,
+      message,
+      created_at: new Date().toISOString(),
+    });
+    await loadData();
+  } catch (error) {
+    form.classList.remove("is-offering");
+    form.removeAttribute("aria-hidden");
+    state.guestSubmissionComplete = false;
+    configureGuestActionButton();
+    showToast(error.message || "축원을 올리지 못했습니다");
+  }
 }
 
 function openMessageModal() {
@@ -587,7 +649,7 @@ function openMessageModal() {
   modal.showModal();
 }
 
-async function sendMessageFromForm(form) {
+async function sendMessageFromForm(form, options = {}) {
   const formData = new FormData(form);
   const userName = clean(formData.get("user_name"));
   const message = clean(formData.get("message"));
@@ -600,11 +662,131 @@ async function sendMessageFromForm(form) {
     created_at: new Date().toISOString(),
   });
 
-  form.reset();
   await loadData();
-  renderMain();
-  showToast("응원이 도착했습니다");
+  if (options.renderAfter !== false) {
+    renderMain();
+    showToast("응원이 도착했습니다");
+  }
   return true;
+}
+
+function configureGuestActionButton() {
+  const ownerMode = isOwnerMode();
+  const button = document.querySelector("[data-guest-only]");
+  if (!button || ownerMode) return;
+
+  button.disabled = false;
+
+  if (state.guestViewingMessages) {
+    button.type = "button";
+    button.removeAttribute("form");
+    button.textContent = "축원 남기기";
+    button.onclick = () => {
+      state.guestViewingMessages = false;
+      state.guestSubmissionComplete = false;
+      renderMain();
+    };
+    return;
+  }
+
+  if (state.guestSubmissionComplete) {
+    button.type = "button";
+    button.removeAttribute("form");
+    button.textContent = "다른 축원 보기";
+    button.onclick = () => {
+      state.guestViewingMessages = true;
+      renderMain();
+    };
+    return;
+  }
+
+  button.type = "submit";
+  button.setAttribute("form", "guest-message-form");
+  button.textContent = "고사상에 올리기";
+  button.onclick = null;
+}
+
+async function playWishOfferingAnimation(onLanded) {
+  const content = document.querySelector(".main-content");
+  if (!content || !window.lottie) {
+    renderWishOffering(true);
+    onLanded?.();
+    return;
+  }
+
+  content.querySelectorAll(".wish-lottie-flight").forEach((item) => item.remove());
+
+  const overlay = document.createElement("div");
+  overlay.className = "wish-lottie-flight";
+  overlay.setAttribute("aria-hidden", "true");
+  content.append(overlay);
+
+  let animationData;
+  try {
+    animationData = await loadWishOfferingAnimationData();
+  } catch (error) {
+    overlay.remove();
+    renderWishOffering(true);
+    onLanded?.();
+    return;
+  }
+
+  const animation = window.lottie.loadAnimation({
+    container: overlay,
+    renderer: "svg",
+    loop: false,
+    autoplay: true,
+    animationData,
+  });
+
+  animation.addEventListener("complete", () => {
+    animation.destroy();
+    overlay.remove();
+    renderWishOffering(false, { fadeIn: true });
+    onLanded?.();
+  });
+
+  animation.addEventListener("data_failed", () => {
+    animation.destroy();
+    overlay.remove();
+    renderWishOffering(true);
+    onLanded?.();
+  });
+}
+
+function renderWishOffering(animate, { fadeIn = false } = {}) {
+  const stage = document.querySelector("[data-table-stage]");
+  if (!stage) return;
+
+  stage.querySelectorAll(".wish-offering").forEach((item) => item.remove());
+
+  const offering = document.createElement("div");
+  offering.className = animate ? "wish-offering is-flying" : "wish-offering is-placed";
+  if (fadeIn) offering.classList.add("is-landing");
+  offering.setAttribute("aria-hidden", "true");
+
+  const bill = document.createElement("img");
+  bill.className = "wish-offering-bill";
+  bill.src = MONEY_BILL_PORTRAIT_ASSET;
+  bill.alt = "";
+
+  offering.append(bill);
+  stage.append(offering);
+
+  if (fadeIn) {
+    requestAnimationFrame(() => requestAnimationFrame(() => offering.classList.remove("is-landing")));
+  }
+
+  if (!animate) return;
+
+  offering.addEventListener(
+    "animationend",
+    () => {
+      offering.classList.remove("is-flying");
+      offering.classList.add("is-placed");
+    },
+    { once: true },
+  );
 }
 
 function openMessageList() {
@@ -642,10 +824,7 @@ function makeMessageItem(message) {
   const name = document.createElement("strong");
   name.textContent = `- ${message.user_name}`;
 
-  const date = document.createElement("time");
-  date.textContent = formatMessageDate(message.created_at);
-
-  footer.append(date, name);
+  footer.append(name);
   item.append(body, footer);
   return item;
 }
@@ -833,20 +1012,6 @@ function normalizeAssetKey(group, value) {
 
   const mapped = legacy[key];
   return mapped ? { group: mapped[0], value: mapped[1] } : { group, value };
-}
-
-function formatMessageDate(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
 }
 
 function jsonp(url) {

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(node --check app.js)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(npm ls *)",
+      "Bash(python3 -m http.server 8934)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/index.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/public/projects/gosa-offering/scene-1/lottie.json)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Read(//tmp/**)",
+      "Bash(node test_offering.mjs)",
+      "Bash(pkill -f \"http.server 8934\")",
+      "Bash(python3 -c \"import numpy, scipy; print\\(numpy.__version__, scipy.__version__\\)\")",
+      "Bash(python3)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-money.png)",
+      "Bash(node test_owner_stack.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-money-portrait.png)",
+      "Bash(python3 -c \"import json; json.load\\(open\\('public/projects/gosa-offering/scene-1/lottie.json'\\)\\); print\\('lottie OK'\\)\")",
+      "Bash(node test_flip_timing.mjs)",
+      "Bash(node test_instant_flip.mjs)"
+    ]
+  }
+}
