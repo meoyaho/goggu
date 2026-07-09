@@ -1,13 +1,20 @@
+const LOCAL_HOSTS = ["localhost", "127.0.0.1"];
+const LOCAL_TEST_TABLE_ID = "t-ee50a5e17cf4680c";
+const LOCAL_TEST_OWNER_TOKEN = "751820bf0f42c78b62c9c5d2";
+const isLocalHost = LOCAL_HOSTS.includes(location.hostname);
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbxKOU8xw9sMljb9GJaNAU8DMz7Ak61TWMVGZ8egR25Vors-zIXMS2Xft5E7EfMT45MKdA/exec";
+
 const CONFIG = {
-  appsScriptUrl: ["localhost", "127.0.0.1"].includes(location.hostname)
-    ? ""
-    : "https://script.google.com/macros/s/AKfycbyKbriB7Mks47IKfizo5viOQDTDk42GWCfoF9yRnsn3865Li-QPwz6WkliztLLw3v_FUA/exec",
-  publicBaseUrl: "https://meoyaho.github.io/goggu/",
+  appsScriptUrl: APPS_SCRIPT_URL,
+  publicBaseUrl: isLocalHost ? `${location.origin}${location.pathname}` : "https://meoyaho.github.io/goggu/",
 };
 
 const TABLES_KEY = "pig_head_tables";
 const MESSAGES_KEY = "pig_head_messages";
-const PRESET_TABLE_IDS = Array.from({ length: 20 }, (_, index) => `gosa-${String(index + 1).padStart(2, "0")}`);
+const TABLE_ID_PATTERN = /^t-[a-z0-9]{16}$/;
+const LEGACY_TABLE_ID_PATTERN = /^[a-z0-9]{16}$/;
+const OWNER_TOKEN_PATTERN = /^[a-z0-9]{24}$/;
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
 const DEFAULT_DECORATION = {
   pig: "gold",
@@ -16,18 +23,19 @@ const DEFAULT_DECORATION = {
 
 const TABLE_ASSET = "assets/asset-ritual-table.png";
 const PIG_ASSET = "assets/asset-pig-head.png";
+const TABLE_STAGE_ASPECT_RATIO = 761 / 1254;
 const DECORATION_ASSETS = [
   { group: "food", value: "apples", label: "사과상", image: "assets/asset-apples.png", width: 22, height: 16 },
+  { group: "food", value: "pears", label: "배상", image: "assets/asset-pear-bowl.png", width: 18, height: 15 },
+  { group: "ritual", value: "meat", label: "고기", image: "assets/asset-meat-bowl.png", width: 11, height: 13 },
   { group: "food", value: "rice", label: "쌀밥", image: "assets/asset-rice-bowl.png", width: 17, height: 15 },
   { group: "food", value: "ricecake", label: "떡상", image: "assets/asset-ricecake-bowl.png", width: 22, height: 15 },
-  { group: "food", value: "pears", label: "배상", image: "assets/asset-pear-bowl.png", width: 18, height: 15 },
-  { group: "ritual", value: "candle", label: "촛대", image: "assets/asset-candle.png", width: 9, height: 31 },
-  { group: "ritual", value: "incense", label: "향로", image: "assets/asset-incense-burner.png", width: 15, height: 27 },
-  { group: "ritual", value: "cup", label: "잔", image: "assets/asset-wood-cup.png", width: 11, height: 13 },
   { group: "extra", value: "flowers", label: "꽃병", image: "assets/asset-flower-vase.png", width: 15, height: 22 },
   { group: "extra", value: "pouch", label: "복주머니", image: "assets/asset-lucky-pouch.png", width: 17, height: 20 },
+  { group: "ritual", value: "incense", label: "향로", image: "assets/asset-incense-burner.png", width: 15, height: 27 },
+  { group: "ritual", value: "candle", label: "촛대", image: "assets/asset-candle.png", width: 9, height: 31 },
 ];
-const PLACED_ASSET_SCALE = 3;
+const PLACED_ASSET_SCALE = 1.5;
 const PLACEMENT_AREA = {
   minX: -18,
   maxX: 118,
@@ -37,14 +45,31 @@ const PLACEMENT_AREA = {
 
 const $app = document.querySelector("#app");
 const params = new URLSearchParams(window.location.search);
+if (isLocalHost) {
+  const localTableParam = params.get("table");
+  const normalizedLocalTableId = normalizeLocalTableId(localTableParam);
+
+  if (!localTableParam || localTableParam !== normalizedLocalTableId) {
+    params.set("table", normalizedLocalTableId);
+    if (!params.get("owner")) params.set("owner", LOCAL_TEST_OWNER_TOKEN);
+  }
+}
+
+if (isLocalHost && window.location.search !== `?${params.toString()}`) {
+  history.replaceState(null, "", `${location.pathname}?${params.toString()}${location.hash}`);
+}
+
 const tableParam = params.get("table");
-const tableId = PRESET_TABLE_IDS.includes(tableParam) ? tableParam : null;
-const mode = tableId && params.get("mode") === "owner" ? "owner" : "guest";
+const ownerTokenParam = params.get("owner");
+const tableId = isValidTableId(tableParam) ? tableParam : null;
+const ownerToken = isValidOwnerToken(ownerTokenParam) ? ownerTokenParam : null;
+const hasOwnerAccessLink = Boolean(tableId && ownerToken);
 
 const state = {
   table: null,
   messages: [],
   setupDecoration: null,
+  canEdit: false,
 };
 
 init();
@@ -58,7 +83,7 @@ async function init() {
   renderLoading();
   await loadData();
 
-  if (mode === "owner" && !state.table) {
+  if (hasOwnerAccessLink && !state.table) {
     renderSetup();
     return;
   }
@@ -72,46 +97,22 @@ async function init() {
 }
 
 async function loadData() {
-  const result = await api("get", { table_id: tableId });
+  const payload = ownerToken ? { table_id: tableId, owner_token: ownerToken } : { table_id: tableId };
+  const result = await api("get", payload);
   state.table = normalizeTable(result.table);
   state.messages = (result.messages || []).map(normalizeMessage);
+  state.canEdit = result.can_edit == null ? hasOwnerAccessLink : Boolean(result.can_edit);
 }
 
 function renderLoading() {
   $app.innerHTML = `
     <section class="screen loading-screen">
-      <div class="loading-pig" data-lottie-loader aria-hidden="true">
-        <div class="loading-pig-fallback">
-          <span class="loader-ear loader-ear-left"></span>
-          <span class="loader-ear loader-ear-right"></span>
-          <span class="loader-face">
-            <span class="loader-eye loader-eye-left"></span>
-            <span class="loader-eye loader-eye-right"></span>
-            <span class="loader-snout"></span>
-            <span class="loader-smile"></span>
-          </span>
-        </div>
+      <div class="loading-pig" aria-hidden="true">
+        <img class="loading-pig-image" src="${PIG_ASSET}" alt="">
       </div>
       <p class="loading-caption">상을 차리는 중입니다</p>
     </section>
   `;
-  mountLottieLoaders();
-}
-
-function mountLottieLoaders() {
-  document.querySelectorAll("[data-lottie-loader]").forEach((container) => {
-    if (!window.lottie || container.dataset.lottieMounted) return;
-
-    container.dataset.lottieMounted = "true";
-    container.textContent = "";
-    window.lottie.loadAnimation({
-      container,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      path: "assets/loading-pig-head.json",
-    });
-  });
 }
 
 function renderNfcStart() {
@@ -119,7 +120,7 @@ function renderNfcStart() {
     <section class="screen nfc-screen">
       <div class="hanging-scroll nfc-scroll">
         <p class="nfc-title">NFC 태그로 시작해주세요</p>
-        <p>이 페이지는 20개의 지정된 고사상 링크로만 시작합니다.</p>
+        <p>이 페이지는 지정된 랜덤 고사상 링크로만 시작합니다.</p>
       </div>
     </section>
   `;
@@ -177,6 +178,7 @@ function renderSetup() {
     renderLoading();
     await api("createOrUpdateTable", {
       table_id: tableId,
+      owner_token: ownerToken,
       date: table.date || getRitualDateValue(),
       owner_name: ownerName,
       blessing: table.blessing || DEFAULT_BLESSING,
@@ -197,31 +199,23 @@ function showSetupStep(stepName) {
 function renderMain() {
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
+  const ownerMode = isOwnerMode();
 
-  document.querySelector("[data-table-id]").textContent = tableId.toUpperCase();
-  document.querySelector("[data-group]").textContent = state.table.owner_name;
-  document.querySelector("[data-blessing]").textContent = state.table.blessing;
-  document.querySelector("[data-message-count]").textContent = String(state.messages.length);
-  document.querySelector("[data-owner-only]").hidden = mode !== "owner";
-  document.querySelector("[data-owner-edit]").hidden = mode !== "owner";
-  document.querySelector("[data-guest-only]").hidden = mode === "owner";
+  document.querySelector("[data-main-title]").textContent = `${state.table.owner_name} 대박 기원`;
+  document.querySelector("[data-main-subtitle]").textContent = ownerMode
+    ? `총 ${state.messages.length}개의 축원이 올라갔습니다`
+    : "친구를 응원하고 좋은 기운을 가져가세요";
+  document.querySelector("[data-owner-only]").hidden = !ownerMode;
+  document.querySelector("[data-guest-only]").hidden = ownerMode;
+  document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode;
+  document.querySelector("[data-guest-message-form]").hidden = ownerMode;
 
   renderDecorationPreview(state.table.decoration);
   renderPaperStack();
+  renderMessageFeed();
 
-  const pigHotspot = document.querySelector("[data-pig-hotspot]");
-  pigHotspot.setAttribute("aria-label", mode === "owner" ? "응원 메시지 목록 보기" : "응원 메시지 작성하기");
-  pigHotspot.addEventListener("click", () => {
-    if (mode === "owner") {
-      openMessageList();
-    } else {
-      openMessageModal();
-    }
-  });
-
+  document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
   document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
-  document.querySelector("[data-owner-edit]").addEventListener("click", renderSetup);
-  document.querySelector("[data-open-message]").addEventListener("click", openMessageModal);
 }
 
 function renderAssetPalette() {
@@ -399,9 +393,11 @@ function getAssetFromElement(element) {
 
 function getAssetSize(assetLike) {
   const asset = findDecorationAsset(assetLike.group, assetLike.value);
+  const width = (asset?.width || 16) * PLACED_ASSET_SCALE;
+
   return {
-    width: (asset?.width || 16) * PLACED_ASSET_SCALE,
-    height: (asset?.height || 16) * PLACED_ASSET_SCALE,
+    width,
+    height: ((asset?.height || 16) * PLACED_ASSET_SCALE) / TABLE_STAGE_ASPECT_RATIO,
   };
 }
 
@@ -549,6 +545,30 @@ function renderPaperStack() {
   });
 }
 
+function renderMessageFeed() {
+  const list = document.querySelector("[data-message-feed]");
+  if (!list) return;
+
+  list.innerHTML = "";
+  if (!state.messages.length) {
+    const empty = document.createElement("li");
+    empty.className = "message-empty";
+    empty.textContent = "아직 도착한 응원이 없습니다.";
+    list.append(empty);
+    return;
+  }
+
+  [...state.messages].reverse().forEach((message) => {
+    list.append(makeMessageItem(message));
+  });
+}
+
+async function submitMessageForm(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  await sendMessageFromForm(form);
+}
+
 function openMessageModal() {
   document.body.append(clone("message-modal-template"));
   const modal = document.querySelector("[data-message-modal]");
@@ -556,28 +576,35 @@ function openMessageModal() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const formData = new FormData(form);
-    const userName = clean(formData.get("user_name"));
-    const message = clean(formData.get("message"));
-    if (!userName || !message) return;
-
-    await api("addMessage", {
-      table_id: tableId,
-      user_name: userName,
-      message,
-      created_at: new Date().toISOString(),
-    });
-
+    const sent = await sendMessageFromForm(form);
+    if (!sent) return;
     modal.close();
     modal.remove();
-    await loadData();
-    renderMain();
-    showToast("응원이 도착했습니다");
   });
 
   modal.querySelector("[data-close-message]").addEventListener("click", () => modal.close());
   modal.addEventListener("close", () => modal.remove(), { once: true });
   modal.showModal();
+}
+
+async function sendMessageFromForm(form) {
+  const formData = new FormData(form);
+  const userName = clean(formData.get("user_name"));
+  const message = clean(formData.get("message"));
+  if (!userName || !message) return false;
+
+  await api("addMessage", {
+    table_id: tableId,
+    user_name: userName,
+    message,
+    created_at: new Date().toISOString(),
+  });
+
+  form.reset();
+  await loadData();
+  renderMain();
+  showToast("응원이 도착했습니다");
+  return true;
 }
 
 function openMessageList() {
@@ -593,24 +620,7 @@ function openMessageList() {
     list.append(empty);
   } else {
     [...state.messages].reverse().forEach((message) => {
-      const item = document.createElement("li");
-      item.className = "message-item";
-
-      const header = document.createElement("div");
-      header.className = "message-item-header";
-
-      const name = document.createElement("strong");
-      name.textContent = message.user_name;
-
-      const date = document.createElement("time");
-      date.textContent = formatMessageDate(message.created_at);
-
-      const body = document.createElement("p");
-      body.textContent = message.message;
-
-      header.append(name, date);
-      item.append(header, body);
-      list.append(item);
+      list.append(makeMessageItem(message));
     });
   }
 
@@ -619,14 +629,70 @@ function openMessageList() {
   modal.showModal();
 }
 
+function makeMessageItem(message) {
+  const item = document.createElement("li");
+  item.className = "message-item";
+
+  const body = document.createElement("p");
+  body.textContent = message.message;
+
+  const footer = document.createElement("div");
+  footer.className = "message-item-footer";
+
+  const name = document.createElement("strong");
+  name.textContent = `- ${message.user_name}`;
+
+  const date = document.createElement("time");
+  date.textContent = formatMessageDate(message.created_at);
+
+  footer.append(date, name);
+  item.append(body, footer);
+  return item;
+}
+
 async function inviteGuests() {
   const text = makeTableUrl(false);
-  try {
-    await navigator.clipboard.writeText(text);
+  const copied = await copyText(text);
+
+  if (copied) {
     showToast("초대 링크를 복사했습니다");
-  } catch {
-    window.prompt("초대 링크", text);
+    return;
   }
+
+  window.prompt("초대 링크를 복사해주세요", text);
+}
+
+async function copyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "-9999px";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  try {
+    if (document.execCommand("copy")) return true;
+  } catch {
+    // Fall through to the async Clipboard API.
+  } finally {
+    textarea.remove();
+  }
+
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 function makeTableUrl(owner) {
@@ -634,15 +700,21 @@ function makeTableUrl(owner) {
   url.search = "";
   url.hash = "";
   url.searchParams.set("table", tableId);
-  if (owner) url.searchParams.set("mode", "owner");
+  if (owner && ownerToken) url.searchParams.set("owner", ownerToken);
   return url.toString();
 }
 
 async function api(action, payload) {
-  if (!CONFIG.appsScriptUrl) return localApi(action, payload);
+  if (!CONFIG.appsScriptUrl) {
+    const result = await localApi(action, payload);
+    if (result?.ok === false) throw new Error(result.error || "Request failed");
+    return result;
+  }
 
   const query = new URLSearchParams({ action, ...payload });
-  return jsonp(`${CONFIG.appsScriptUrl}?${query.toString()}`);
+  const result = await jsonp(`${CONFIG.appsScriptUrl}?${query.toString()}`);
+  if (result?.ok === false) throw new Error(result.error || "Request failed");
+  return result;
 }
 
 function localApi(action, payload) {
@@ -650,15 +722,23 @@ function localApi(action, payload) {
   const messages = readJson(MESSAGES_KEY, []);
 
   if (action === "get") {
+    const table = tables[payload.table_id] || null;
     return Promise.resolve({
-      table: tables[payload.table_id] || null,
+      table,
       messages: messages.filter((message) => message.table_id === payload.table_id),
+      can_edit: Boolean(table && payload.owner_token && (!table.owner_token || table.owner_token === payload.owner_token)),
     });
   }
 
   if (action === "createOrUpdateTable") {
+    const existing = tables[payload.table_id];
+    if (existing?.owner_token && existing.owner_token !== payload.owner_token) {
+      return Promise.resolve({ ok: false, error: "owner_token does not match" });
+    }
+
     tables[payload.table_id] = {
       table_id: payload.table_id,
+      owner_token: existing?.owner_token || payload.owner_token,
       date: payload.date,
       owner_name: payload.owner_name,
       blessing: payload.blessing,
@@ -747,7 +827,7 @@ function normalizeAssetKey(group, value) {
     "incense:single": ["ritual", "candle"],
     "incense:triple": ["ritual", "incense"],
     "incense:blue": ["ritual", "incense"],
-    "extra:coins": ["ritual", "cup"],
+    "extra:coins": ["ritual", "meat"],
     "extra:flags": ["extra", "pouch"],
   };
 
@@ -809,6 +889,25 @@ function readJson(key, fallback) {
 
 function clean(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function isValidTableId(value) {
+  return TABLE_ID_PATTERN.test(String(value || ""));
+}
+
+function normalizeLocalTableId(value) {
+  const tableValue = String(value || "");
+  if (isValidTableId(tableValue)) return tableValue;
+  if (LEGACY_TABLE_ID_PATTERN.test(tableValue)) return `t-${tableValue}`;
+  return LOCAL_TEST_TABLE_ID;
+}
+
+function isValidOwnerToken(value) {
+  return OWNER_TOKEN_PATTERN.test(String(value || ""));
+}
+
+function isOwnerMode() {
+  return hasOwnerAccessLink && state.canEdit;
 }
 
 function showToast(message) {

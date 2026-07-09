@@ -201,7 +201,7 @@ def main():
         ("asset-ricecake-bowl.png", (402, 522, 708, 795), 220, 12),
         ("asset-pear-bowl.png", (738, 508, 990, 798), 220, 12),
         ("asset-flower-vase.png", (1075, 486, 1338, 832), 220, 12),
-        ("asset-wood-cup.png", (350, 810, 565, 1045), 220, 10),
+        ("asset-meat-bowl.png", (350, 810, 565, 1045), 220, 10),
         ("asset-lucky-pouch.png", (620, 775, 902, 1078), 220, 12),
     ]
 

@@ -7,7 +7,6 @@
     <meta name="description" content="새 시작을 응원하는 번창 기원상">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f4c64f'/%3E%3Ccircle cx='32' cy='34' r='18' fill='%23f6c7ad'/%3E%3Cellipse cx='32' cy='34' rx='11' ry='8' fill='%23e89178'/%3E%3Ccircle cx='27' cy='33' r='2' fill='%23551b16'/%3E%3Ccircle cx='37' cy='33' r='2' fill='%23551b16'/%3E%3C/svg%3E">
     <link rel="preload" href="assets/asset-ritual-table.png" as="image">
-    <link rel="preload" href="assets/loading-pig-head.json" as="fetch" crossorigin>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -16,73 +15,104 @@
     <template id="setup-template">
       <section class="screen setup-screen">
         <div class="setup-step is-active" data-setup-step="decorate">
-          <div class="table-stage setup-table empty-altar" data-table-stage data-drop-zone>
-            <img src="assets/asset-ritual-table.png" alt="돼지머리가 놓인 빈 고사상" class="ritual-table">
-            <div class="decor-layer" data-decor-layer></div>
+          <header class="setup-header">
+            <h1>나만의 고사상 꾸미기</h1>
+            <p>고사상을 꾸미고 대박을 기원하세요</p>
+          </header>
+
+          <div class="setup-content setup-decor-content">
+            <div class="table-stage setup-table empty-altar" data-table-stage data-drop-zone>
+              <img src="assets/asset-ritual-table.png" alt="돼지머리가 놓인 빈 고사상" class="ritual-table">
+              <div class="decor-layer" data-decor-layer></div>
+            </div>
+
+            <div class="asset-dock" data-asset-palette></div>
           </div>
 
-          <div class="asset-dock" data-asset-palette></div>
-          <div class="setup-decor-actions">
+          <footer class="screen-footer setup-decor-actions">
             <button class="secondary-action" type="button" data-reset-decoration>초기화</button>
             <button class="primary-action setup-next" type="button" data-next-setup>다음</button>
-          </div>
+          </footer>
         </div>
 
         <form class="setup-form setup-step" data-setup-step="blessing" data-setup-form>
-          <div class="table-stage setup-table setup-review-table" data-table-stage>
-            <img src="assets/asset-ritual-table.png" alt="차려진 고사상" class="ritual-table">
-            <div class="decor-layer" data-decor-layer></div>
+          <header class="setup-header">
+            <h1>나만의 고사상 꾸미기</h1>
+            <p>고사상을 꾸미고 대박을 기원하세요</p>
+          </header>
+
+          <div class="setup-content setup-blessing-content">
+            <div class="table-stage setup-table setup-review-table" data-table-stage>
+              <img src="assets/asset-ritual-table.png" alt="차려진 고사상" class="ritual-table">
+              <div class="decor-layer" data-decor-layer></div>
+            </div>
+
+            <div class="setup-ritual-panel">
+              <div class="hanging-scroll ritual-scroll editable-ritual ritual-confirm-scroll">
+                <p class="ritual-date" data-ritual-date></p>
+                <p>
+                  오늘 저희
+                  <input class="inline-name-input" name="owner_name" data-group-input autocomplete="organization" maxlength="24" required>
+                  외 참석자 일동은 이곳에 모여 천지신명과 이 터를 지켜주시는 토지신께 삼가 고하나이다.
+                </p>
+                <p>지나온 날들을 무사히 보낼 수 있도록 보살펴 주신 은혜에 깊이 감사드리며, 앞으로 저희가 하고자 하는 모든 일들이 순조롭게 풀리고 큰 결실을 맺을 수 있도록 굽어살펴 주시옵소서.</p>
+                <p>
+                  바라옵건대, 저희
+                  <input class="inline-name-input" data-group-input maxlength="24" required>
+                  구성원 모두가 건강하고 평안하게 하시고, 오가는 길마다 사고와 재앙을 막아주시며, 늘 화목과 행운이 가득하게 인도하여 주시옵소서.
+                </p>
+                <p>오늘 저희가 마음과 뜻을 모아 정성껏 제물을 마련하여 올리오니, 기쁘게 받아두시고 저희의 간절한 소망을 이루어 주시옵소서.</p>
+                <p class="sanghyang">尙饗(상향)</p>
+              </div>
+            </div>
           </div>
 
-          <div class="hanging-scroll ritual-scroll editable-ritual ritual-confirm-scroll">
-            <p class="ritual-date" data-ritual-date></p>
-            <p>
-              오늘 저희
-              <input class="inline-name-input" name="owner_name" data-group-input autocomplete="organization" maxlength="24" required placeholder="모임명">
-              외 참석자 일동은 이곳에 모여 천지신명과 이 터를 지켜주시는 토지신께 삼가 고하나이다.
-            </p>
-            <p>지나온 날들을 무사히 보낼 수 있도록 보살펴 주신 은혜에 깊이 감사드리며, 앞으로 저희가 하고자 하는 모든 일들이 순조롭게 풀리고 큰 결실을 맺을 수 있도록 굽어살펴 주시옵소서.</p>
-            <p>
-              바라옵건대, 저희
-              <input class="inline-name-input" data-group-input maxlength="24" required placeholder="모임명">
-              구성원 모두가 건강하고 평안하게 하시고, 오가는 길마다 사고와 재앙을 막아주시며, 늘 화목과 행운이 가득하게 인도하여 주시옵소서.
-            </p>
-            <p>오늘 저희가 마음과 뜻을 모아 정성껏 제물을 마련하여 올리오니, 기쁘게 받아두시고 저희의 간절한 소망을 이루어 주시옵소서.</p>
-            <p class="sanghyang">尙饗(상향)</p>
-          </div>
-
-          <div class="setup-confirm-actions">
+          <footer class="screen-footer setup-confirm-actions">
             <button class="secondary-action" type="button" data-back-setup>다시 꾸미기</button>
             <button class="primary-action" type="submit">확인</button>
-          </div>
+          </footer>
         </form>
       </section>
     </template>
 
     <template id="main-template">
       <section class="screen main-screen">
-        <header class="blessing-panel">
-          <div class="hanging-scroll main-blessing-scroll" aria-label="대박 기원 족자">
-            <span class="table-id" data-table-id></span>
-            <p class="ritual-date" data-ritual-date></p>
-            <p><strong data-group></strong></p>
-            <p data-blessing></p>
-            <small>도착한 응원 <b data-message-count>0</b>개</small>
-          </div>
+        <header class="setup-header main-header">
+          <h1 data-main-title></h1>
+          <p data-main-subtitle></p>
         </header>
 
-        <div class="table-stage table-display" data-table-stage>
-          <img src="assets/asset-ritual-table.png" alt="돼지머리가 놓인 제사상" class="ritual-table">
-          <div class="decor-layer" data-decor-layer></div>
-          <span class="paper-stack" data-paper-stack aria-hidden="true"></span>
-          <button class="pig-hotspot" type="button" data-pig-hotspot></button>
+        <div class="setup-content main-content">
+          <div class="table-stage table-display" data-table-stage>
+            <img src="assets/asset-ritual-table.png" alt="돼지머리가 놓인 제사상" class="ritual-table">
+            <div class="decor-layer" data-decor-layer></div>
+            <span class="paper-stack" data-paper-stack aria-hidden="true"></span>
+          </div>
+
+          <section class="message-feed-panel" aria-label="응원 리스트">
+            <ul class="message-feed" data-message-feed></ul>
+          </section>
+
+          <form class="guest-message-panel" id="guest-message-form" data-guest-message-form hidden>
+            <label>
+              <span>올리는 이</span>
+              <input name="user_name" placeholder="이름을 남겨주세요" maxlength="18" required>
+            </label>
+            <label class="guest-message-body">
+              <span>축원</span>
+              <textarea name="message" placeholder="응원의 말을 적어주세요" maxlength="100" required></textarea>
+            </label>
+            <div class="guest-offering-money" aria-label="가상 축원금">
+              <span>가상 축원금</span>
+              <strong>50,000원</strong>
+            </div>
+          </form>
         </div>
 
-        <div class="action-bar">
+        <footer class="screen-footer action-bar">
           <button class="primary-action" type="button" data-owner-only data-invite>사람들 초대하기</button>
-          <button class="secondary-action" type="button" data-owner-edit>상 다시 꾸미기</button>
-          <button class="primary-action" type="button" data-guest-only data-open-message>메시지 작성하기</button>
-        </div>
+          <button class="primary-action" type="submit" form="guest-message-form" data-guest-only>고사상에 올리기</button>
+        </footer>
       </section>
     </template>
 
@@ -114,7 +144,6 @@
       </dialog>
     </template>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>

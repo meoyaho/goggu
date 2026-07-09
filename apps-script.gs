@@ -4,7 +4,7 @@ const SHEET_NAMES = {
 };
 
 const HEADERS = {
-  tables: ["table_id", "date", "owner_name", "blessing", "decoration_json"],
+  tables: ["table_id", "date", "owner_name", "blessing", "decoration_json", "owner_token"],
   messages: ["table_id", "user_name", "message", "created_at"],
 };
 
@@ -17,7 +17,7 @@ function doGet(event) {
     ensureSheets_();
 
     if (action === "get") {
-      result = getData_(params.table_id);
+      result = getData_(params);
     } else if (action === "createOrUpdateTable") {
       result = createOrUpdateTable_(params);
     } else if (action === "addMessage") {
@@ -32,16 +32,23 @@ function doGet(event) {
   return output_(result, params.callback);
 }
 
-function getData_(tableId) {
+function getData_(params) {
+  const tableId = clean_(params.table_id);
+  const ownerToken = clean_(params.owner_token);
   if (!tableId) throw new Error("table_id is required");
 
   const tables = getRows_(SHEET_NAMES.tables);
   const messages = getRows_(SHEET_NAMES.messages);
+  const table = tables.find((row) => row.table_id === tableId) || null;
+  const canEdit = Boolean(table && ownerToken && (!table.owner_token || table.owner_token === ownerToken));
+  const publicTable = table ? Object.assign({}, table) : null;
+  if (publicTable) delete publicTable.owner_token;
 
   return {
     ok: true,
-    table: tables.find((row) => row.table_id === tableId) || null,
+    table: publicTable,
     messages: messages.filter((row) => row.table_id === tableId),
+    can_edit: canEdit,
   };
 }
 
@@ -51,9 +58,10 @@ function createOrUpdateTable_(params) {
   const ownerName = clean_(params.owner_name);
   const blessing = clean_(params.blessing);
   const decorationJson = clean_(params.decoration_json);
+  const ownerToken = clean_(params.owner_token);
 
-  if (!tableId || !date || !ownerName || !blessing || !decorationJson) {
-    throw new Error("table_id, date, owner_name, blessing, decoration_json are required");
+  if (!tableId || !date || !ownerName || !blessing || !decorationJson || !ownerToken) {
+    throw new Error("table_id, date, owner_name, blessing, decoration_json, owner_token are required");
   }
 
   const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.tables);
@@ -61,9 +69,14 @@ function createOrUpdateTable_(params) {
   const existingRow = values.findIndex((row, index) => index > 0 && row[0] === tableId);
 
   if (existingRow >= 1) {
-    sheet.getRange(existingRow + 1, 1, 1, 5).setValues([[tableId, date, ownerName, blessing, decorationJson]]);
+    const existingOwnerToken = clean_(values[existingRow][5]);
+    if (existingOwnerToken && existingOwnerToken !== ownerToken) {
+      throw new Error("owner_token does not match");
+    }
+
+    sheet.getRange(existingRow + 1, 1, 1, 6).setValues([[tableId, date, ownerName, blessing, decorationJson, existingOwnerToken || ownerToken]]);
   } else {
-    sheet.appendRow([tableId, date, ownerName, blessing, decorationJson]);
+    sheet.appendRow([tableId, date, ownerName, blessing, decorationJson, ownerToken]);
   }
 
   return { ok: true };
