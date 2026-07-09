@@ -33,7 +33,14 @@
       "Bash(rm -f \"/private/tmp/claude-501/-Users-jisuryou-Library-Mobile-Documents-com-apple-CloudDocs----02-goods-2607-pig-head/85e2e412-1a52-4bff-97a0-deea4507c54e/scratchpad/loading3_\"*.png)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-pig-head-open.png)",
       "Bash(node test_setup.mjs)",
-      "WebFetch(domain:discuss.pytorch.kr)"
+      "WebFetch(domain:discuss.pytorch.kr)",
+      "Bash(node test_setup2.mjs)",
+      "Bash(node test_wish_input.mjs)",
+      "Bash(rm -f \"/private/tmp/claude-501/-Users-jisuryou-Library-Mobile-Documents-com-apple-CloudDocs----02-goods-2607-pig-head/85e2e412-1a52-4bff-97a0-deea4507c54e/scratchpad/t_\"*.png \"/private/tmp/claude-501/-Users-jisuryou-Library-Mobile-Documents-com-apple-CloudDocs----02-goods-2607-pig-head/85e2e412-1a52-4bff-97a0-deea4507c54e/scratchpad/0_before.png\")",
+      "Bash(grep -i \"pageerror\\\\|console\" /dev/null; echo \"checked test output above already clean \\(no [pageerror] lines printed\\)\")",
+      "Read(//dev/**)",
+      "Bash(node test_offering_cleanup.mjs)",
+      "Bash(node test_guest_view_subtitle.mjs)"
     ]
   }
 }
