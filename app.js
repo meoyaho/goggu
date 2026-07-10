@@ -42,19 +42,17 @@ const FIXED_OWNER_TABLE_IDS = new Set([
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
 const DEFAULT_BG = "#f4d88b";
 const PLATE_COUNT = 6;
-const DEFAULT_ACCESSORY = "none";
 const DEFAULT_DECORATION = {
   bg: DEFAULT_BG,
   plates: new Array(PLATE_COUNT).fill(null),
   wish: "",
-  accessory: DEFAULT_ACCESSORY,
 };
 
 const PIG_ASSET = "assets/asset-pig-head.png";
-const PIG_ASSET_OPEN = "assets/asset-pig-head-open.png";
-const PIG_RIBBON_ASSET = "assets/asset-pig-ribbon.png";
-const PIG_FLOWER_ASSET = "assets/asset-pig-flower.png";
+const PIG_ASSET_OPEN = PIG_ASSET;
+const PIG_BOX_ASSET = "assets/asset-pig-head-box.png";
 const RICECAKE_PLAIN_ASSET = "assets/asset-ricecake-plain.png";
+const GULBI_ASSET = "assets/asset-gulbi.png";
 const MONEY_BILL_PORTRAIT_ASSET = "assets/asset-money-portrait.png";
 const MONEY_BILL_ASSET = "assets/asset-money.png";
 const BG_COLOR_CHOICES = [
@@ -74,21 +72,19 @@ const BG_COLOR_CHOICES = [
   { value: "#5c3a6b", label: "보라" },
   { value: "#8b8478", label: "은회" },
 ];
-const PIG_ACCESSORY_CHOICES = [
-  { value: "none", label: "없음" },
-  { value: "ribbon", label: "리본" },
-  { value: "flower", label: "꽃" },
-];
 const DECORATION_ASSETS = [
-  { value: "apples", label: "사과", image: "assets/asset-apples.png" },
+  { value: "apple", label: "사과", image: "assets/asset-apple.png" },
   { value: "pear", label: "배", image: "assets/asset-pear.png" },
-  { value: "ricecake", label: "떡", image: "assets/asset-ricecake.png" },
-  { value: "watermelon", label: "수박", image: "assets/asset-watermelon.png" },
-  { value: "pineapple", label: "파인애플", image: "assets/asset-pineapple.png" },
-  { value: "pouch", label: "복주머니", image: "assets/asset-lucky-pouch.png" },
-  { value: "meat", label: "고기", image: "assets/asset-meat.png" },
-  { value: "gulbi", label: "굴비", image: "assets/asset-gulbi.png" },
+  { value: "orange", label: "오렌지", image: "assets/asset-orange.png" },
+  { value: "snack", label: "snack", image: "assets/asset-snack.png" },
+  { value: "pizza", label: "피자", image: "assets/pizza.png" },
+  { value: "chicken", label: "치킨", image: "assets/chicken.png" },
+  { value: "candy-red", label: "빨간 사탕", image: "assets/asset-candy-red.png" },
+  { value: "candy-yellow", label: "노란 사탕", image: "assets/asset-candy-yellow.png" },
 ];
+const DECORATION_ASSET_ALIASES = {
+  apples: "apple",
+};
 
 const $app = document.querySelector("#app");
 const params = new URLSearchParams(window.location.search);
@@ -133,7 +129,9 @@ async function init() {
     return;
   }
 
-  renderLoading();
+  renderLoading({
+    caption: hasOwnerAccessLink ? "상을 차리는 중입니다" : "귀한 클릭 감사드립니다",
+  });
   await loadData();
 
   if (hasOwnerAccessLink && !state.table) {
@@ -157,10 +155,10 @@ async function loadData() {
   state.canEdit = result.can_edit == null ? hasOwnerAccessLink : Boolean(result.can_edit);
 }
 
-function renderLoading() {
+function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
   $app.innerHTML = `
     <section class="screen loading-screen" data-loading-screen>
-      <p class="loading-caption">상을 차리는 중입니다</p>
+      <p class="loading-caption">${caption}</p>
       <div class="loading-pig-wrap" data-loading-pig-wrap aria-hidden="true">
         <img class="loading-pig-image" src="${PIG_ASSET_OPEN}" alt="">
       </div>
@@ -241,7 +239,6 @@ function renderSetup() {
   syncGroupInputs(table.owner_name || "");
   renderAssetPalette();
   renderBgPalette();
-  renderAccessoryPalette();
   renderDecorationPreview(state.setupDecoration);
   wireSetupDrag();
   wireDecorTabs();
@@ -252,7 +249,6 @@ function renderSetup() {
     state.setupDecoration = cloneDecorationForSetup(null, false);
     renderDecorationPreview(state.setupDecoration);
     syncBgPaletteSelection();
-    syncAccessoryPaletteSelection();
     syncWishInputs();
   });
 
@@ -293,7 +289,8 @@ function renderSetup() {
 }
 
 function isWishComplete(wish) {
-  return typeof wish === "string" && wish.length === 4 && ![...wish].some((ch) => !ch.trim());
+  const chars = getTextChars(wish);
+  return chars.length === 4 && !chars.some((ch) => !ch.trim());
 }
 
 function showSetupStep(stepName) {
@@ -383,50 +380,6 @@ function syncBgPaletteSelection() {
   });
 }
 
-function renderAccessoryPalette() {
-  const root = document.querySelector("[data-accessory-palette]");
-  if (!root) return;
-  root.innerHTML = "";
-
-  PIG_ACCESSORY_CHOICES.forEach((choice) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "accessory-swatch";
-    button.dataset.accessoryValue = choice.value;
-    button.setAttribute("aria-label", choice.label);
-    button.innerHTML = getAccessoryIconMarkup(choice.value);
-    button.addEventListener("click", () => {
-      state.setupDecoration.accessory = choice.value;
-      renderDecorationPreview(state.setupDecoration);
-      syncAccessoryPaletteSelection();
-    });
-    root.append(button);
-  });
-
-  syncAccessoryPaletteSelection();
-}
-
-function syncAccessoryPaletteSelection() {
-  document.querySelectorAll("[data-accessory-value]").forEach((button) => {
-    button.classList.toggle("is-selected", button.dataset.accessoryValue === state.setupDecoration.accessory);
-  });
-}
-
-function getAccessoryIconMarkup(value) {
-  if (value === "ribbon") {
-    return `<img src="${PIG_RIBBON_ASSET}" alt="" draggable="false">`;
-  }
-
-  if (value === "flower") {
-    return `<img src="${PIG_FLOWER_ASSET}" alt="" draggable="false">`;
-  }
-
-  return `<svg viewBox="0 0 100 100" aria-hidden="true">
-    <circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" stroke-width="6" opacity="0.4"/>
-    <line x1="26" y1="26" x2="74" y2="74" stroke="currentColor" stroke-width="6" opacity="0.4"/>
-  </svg>`;
-}
-
 function wireDecorTabs() {
   document.querySelectorAll("[data-decor-tab]").forEach((tab) => {
     tab.addEventListener("click", () => showDecorTab(tab.dataset.decorTab));
@@ -443,39 +396,60 @@ function showDecorTab(name) {
 }
 
 function wireWishInputs() {
-  const inputs = [...document.querySelectorAll("[data-wish-inputs] .wish-char-input")];
+  const root = document.querySelector("[data-wish-inputs]");
+  const input = root?.querySelector(".wish-text-input");
+  if (!root || !input) return;
 
-  inputs.forEach((input, index) => {
-    const commitValue = () => {
-      input.value = input.value.slice(-1);
-      state.setupDecoration.wish = inputs.map((item) => item.value).join("");
-      renderDecorationPreview(state.setupDecoration);
-      if (input.value && inputs[index + 1]) inputs[index + 1].focus();
-    };
+  const commitValue = () => {
+    const chars = getTextChars(input.value).slice(0, 4);
+    state.setupDecoration.wish = chars.join("");
+    input.value = state.setupDecoration.wish;
+    syncWishInputs();
+    renderDecorationPreview(state.setupDecoration);
+  };
 
-    input.addEventListener("input", (event) => {
-      if (event.isComposing) return;
-      commitValue();
-    });
+  input.addEventListener("input", (event) => {
+    if (event.isComposing || input.dataset.composing === "true") {
+      syncWishInputs(getTextChars(input.value).slice(0, 4));
+      return;
+    }
+    commitValue();
+  });
 
-    input.addEventListener("compositionend", commitValue);
+  input.addEventListener("compositionstart", () => {
+    input.dataset.composing = "true";
+  });
 
-    input.addEventListener("focus", () => input.select());
+  input.addEventListener("compositionupdate", () => {
+    syncWishInputs(getTextChars(input.value).slice(0, 4));
+  });
 
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Backspace" && !input.value && inputs[index - 1]) inputs[index - 1].focus();
-    });
+  input.addEventListener("compositionend", () => {
+    input.dataset.composing = "false";
+    commitValue();
+  });
+
+  root.addEventListener("pointerdown", () => {
+    input.focus();
   });
 
   syncWishInputs();
 }
 
-function syncWishInputs() {
-  const inputs = [...document.querySelectorAll("[data-wish-inputs] .wish-char-input")];
-  const chars = (state.setupDecoration.wish || "").split("");
-  inputs.forEach((input, index) => {
-    input.value = chars[index] || "";
+function syncWishInputs(chars = getTextChars(state.setupDecoration.wish || "")) {
+  const root = document.querySelector("[data-wish-inputs]");
+  if (!root) return;
+
+  const input = root.querySelector(".wish-text-input");
+  if (input && input.dataset.composing !== "true") input.value = chars.slice(0, 4).join("");
+
+  root.querySelectorAll(".wish-char-input").forEach((slot, index) => {
+    slot.textContent = chars[index] || "";
   });
+}
+
+function getTextChars(value) {
+  return Array.from(String(value || ""));
 }
 
 function wireSetupDrag() {
@@ -652,17 +626,16 @@ function renderDecorationPreview(decoration, { openMouth = false } = {}) {
     layer.innerHTML = "";
     stage.style.setProperty("--stage-bg", decoration.bg || DEFAULT_BG);
 
+    const pigBox = document.createElement("span");
+    pigBox.className = "decor-item decor-pig-box";
+    pigBox.setAttribute("aria-hidden", "true");
+    pigBox.append(makeDecorImage(PIG_BOX_ASSET));
+    layer.append(pigBox);
+
     const pig = document.createElement("span");
     pig.className = "decor-item decor-pig";
     pig.setAttribute("aria-hidden", "true");
     pig.append(makeDecorImage(openMouth ? PIG_ASSET_OPEN : PIG_ASSET));
-
-    if (decoration.accessory && decoration.accessory !== "none") {
-      const accessory = document.createElement("span");
-      accessory.className = `decor-accessory decor-accessory-${decoration.accessory}`;
-      accessory.innerHTML = getAccessoryIconMarkup(decoration.accessory);
-      pig.append(accessory);
-    }
 
     layer.append(pig);
 
@@ -670,6 +643,11 @@ function renderDecorationPreview(decoration, { openMouth = false } = {}) {
     ricecake.className = "decor-item decor-ricecake";
     ricecake.setAttribute("aria-hidden", "true");
     ricecake.append(makeDecorImage(RICECAKE_PLAIN_ASSET));
+
+    const gulbi = document.createElement("span");
+    gulbi.className = "decor-gulbi";
+    gulbi.append(makeDecorImage(GULBI_ASSET));
+    ricecake.append(gulbi);
 
     const wishRow = document.createElement("span");
     wishRow.className = "wish-char-row";
@@ -711,25 +689,34 @@ function makeDecorImage(src) {
 }
 
 function findDecorationAsset(value) {
-  return DECORATION_ASSETS.find((asset) => asset.value === value);
+  const normalizedValue = normalizeDecorationAssetValue(value);
+  return DECORATION_ASSETS.find((asset) => asset.value === normalizedValue);
+}
+
+function normalizeDecorationAssetValue(value) {
+  if (!value) return null;
+  const normalizedValue = DECORATION_ASSET_ALIASES[value] || value;
+  return DECORATION_ASSETS.some((asset) => asset.value === normalizedValue) ? normalizedValue : null;
 }
 
 function getPlates(decoration) {
   const plates = Array.isArray(decoration?.plates) ? decoration.plates.slice(0, PLATE_COUNT) : [];
   while (plates.length < PLATE_COUNT) plates.push(null);
-  return plates.map((plate) => (plate && plate.value ? { value: plate.value } : null));
+  return plates.map((plate) => {
+    const value = normalizeDecorationAssetValue(plate?.value);
+    return value ? { value } : null;
+  });
 }
 
 function cloneDecorationForSetup(decoration, hasSavedTable) {
   if (!hasSavedTable || !decoration) {
-    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "", accessory: DEFAULT_ACCESSORY };
+    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "" };
   }
 
   return {
     bg: decoration.bg || DEFAULT_BG,
     plates: getPlates(decoration),
     wish: decoration.wish || "",
-    accessory: isValidAccessory(decoration.accessory) ? decoration.accessory : DEFAULT_ACCESSORY,
   };
 }
 
@@ -1201,15 +1188,10 @@ function parseDecoration(value) {
       bg: typeof parsed.bg === "string" && parsed.bg ? parsed.bg : DEFAULT_BG,
       plates: getPlates(parsed),
       wish: typeof parsed.wish === "string" ? parsed.wish.slice(0, 4) : "",
-      accessory: isValidAccessory(parsed.accessory) ? parsed.accessory : DEFAULT_ACCESSORY,
     };
   } catch {
-    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "", accessory: DEFAULT_ACCESSORY };
+    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "" };
   }
-}
-
-function isValidAccessory(value) {
-  return PIG_ACCESSORY_CHOICES.some((choice) => choice.value === value);
 }
 
 function jsonp(url) {

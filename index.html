@@ -6,7 +6,8 @@
     <title>번창 기원상</title>
     <meta name="description" content="새 시작을 응원하는 번창 기원상">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f4c64f'/%3E%3Ccircle cx='32' cy='34' r='18' fill='%23f6c7ad'/%3E%3Cellipse cx='32' cy='34' rx='11' ry='8' fill='%23e89178'/%3E%3Ccircle cx='27' cy='33' r='2' fill='%23551b16'/%3E%3Ccircle cx='37' cy='33' r='2' fill='%23551b16'/%3E%3C/svg%3E">
-    <link rel="preload" href="assets/asset-pig-head-open.png" as="image">
+    <link rel="preload" href="assets/asset-pig-head.png" as="image">
+    <link rel="preload" href="assets/asset-pig-head-box.png" as="image">
     <link rel="preload" href="assets/asset-money-portrait.png" as="image">
     <link rel="preload" href="assets/asset-money.png" as="image">
     <link rel="stylesheet" href="styles.css">
@@ -43,12 +44,12 @@
               </div>
 
               <div class="asset-decor-panel wish-decor-panel" data-decor-panel="wish">
-                <div class="accessory-palette" data-accessory-palette></div>
                 <div class="wish-input-row" data-wish-inputs>
-                  <input class="wish-char-input" maxlength="1" inputmode="text" aria-label="축원 첫 번째 글자">
-                  <input class="wish-char-input" maxlength="1" inputmode="text" aria-label="축원 두 번째 글자">
-                  <input class="wish-char-input" maxlength="1" inputmode="text" aria-label="축원 세 번째 글자">
-                  <input class="wish-char-input" maxlength="1" inputmode="text" aria-label="축원 네 번째 글자">
+                  <input class="wish-text-input" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="축원 네 글자">
+                  <span class="wish-char-input" aria-hidden="true"></span>
+                  <span class="wish-char-input" aria-hidden="true"></span>
+                  <span class="wish-char-input" aria-hidden="true"></span>
+                  <span class="wish-char-input" aria-hidden="true"></span>
                 </div>
               </div>
             </div>
