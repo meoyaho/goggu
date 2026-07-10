@@ -18,14 +18,18 @@ const OWNER_TOKEN_PATTERN = /^[a-z0-9]{24}$/;
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
 const DEFAULT_BG = "#f4d88b";
 const PLATE_COUNT = 6;
+const DEFAULT_ACCESSORY = "none";
 const DEFAULT_DECORATION = {
   bg: DEFAULT_BG,
   plates: new Array(PLATE_COUNT).fill(null),
   wish: "",
+  accessory: DEFAULT_ACCESSORY,
 };
 
 const PIG_ASSET = "assets/asset-pig-head.png";
 const PIG_ASSET_OPEN = "assets/asset-pig-head-open.png";
+const PIG_RIBBON_ASSET = "assets/asset-pig-ribbon.png";
+const PIG_FLOWER_ASSET = "assets/asset-pig-flower.png";
 const RICECAKE_PLAIN_ASSET = "assets/asset-ricecake-plain.png";
 const MONEY_BILL_PORTRAIT_ASSET = "assets/asset-money-portrait.png";
 const MONEY_BILL_ASSET = "assets/asset-money.png";
@@ -45,6 +49,11 @@ const BG_COLOR_CHOICES = [
   { value: "#8a9b5c", label: "연두" },
   { value: "#5c3a6b", label: "보라" },
   { value: "#8b8478", label: "은회" },
+];
+const PIG_ACCESSORY_CHOICES = [
+  { value: "none", label: "없음" },
+  { value: "ribbon", label: "리본" },
+  { value: "flower", label: "꽃" },
 ];
 const DECORATION_ASSETS = [
   { value: "apples", label: "사과", image: "assets/asset-apples.png" },
@@ -204,6 +213,7 @@ function renderSetup() {
   syncGroupInputs(table.owner_name || "");
   renderAssetPalette();
   renderBgPalette();
+  renderAccessoryPalette();
   renderDecorationPreview(state.setupDecoration);
   wireSetupDrag();
   wireDecorTabs();
@@ -214,6 +224,7 @@ function renderSetup() {
     state.setupDecoration = cloneDecorationForSetup(null, false);
     renderDecorationPreview(state.setupDecoration);
     syncBgPaletteSelection();
+    syncAccessoryPaletteSelection();
     syncWishInputs();
   });
 
@@ -342,6 +353,50 @@ function syncBgPaletteSelection() {
   document.querySelectorAll("[data-bg-value]").forEach((button) => {
     button.classList.toggle("is-selected", button.dataset.bgValue === state.setupDecoration.bg);
   });
+}
+
+function renderAccessoryPalette() {
+  const root = document.querySelector("[data-accessory-palette]");
+  if (!root) return;
+  root.innerHTML = "";
+
+  PIG_ACCESSORY_CHOICES.forEach((choice) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "accessory-swatch";
+    button.dataset.accessoryValue = choice.value;
+    button.setAttribute("aria-label", choice.label);
+    button.innerHTML = getAccessoryIconMarkup(choice.value);
+    button.addEventListener("click", () => {
+      state.setupDecoration.accessory = choice.value;
+      renderDecorationPreview(state.setupDecoration);
+      syncAccessoryPaletteSelection();
+    });
+    root.append(button);
+  });
+
+  syncAccessoryPaletteSelection();
+}
+
+function syncAccessoryPaletteSelection() {
+  document.querySelectorAll("[data-accessory-value]").forEach((button) => {
+    button.classList.toggle("is-selected", button.dataset.accessoryValue === state.setupDecoration.accessory);
+  });
+}
+
+function getAccessoryIconMarkup(value) {
+  if (value === "ribbon") {
+    return `<img src="${PIG_RIBBON_ASSET}" alt="" draggable="false">`;
+  }
+
+  if (value === "flower") {
+    return `<img src="${PIG_FLOWER_ASSET}" alt="" draggable="false">`;
+  }
+
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" stroke-width="6" opacity="0.4"/>
+    <line x1="26" y1="26" x2="74" y2="74" stroke="currentColor" stroke-width="6" opacity="0.4"/>
+  </svg>`;
 }
 
 function wireDecorTabs() {
@@ -573,6 +628,14 @@ function renderDecorationPreview(decoration, { openMouth = false } = {}) {
     pig.className = "decor-item decor-pig";
     pig.setAttribute("aria-hidden", "true");
     pig.append(makeDecorImage(openMouth ? PIG_ASSET_OPEN : PIG_ASSET));
+
+    if (decoration.accessory && decoration.accessory !== "none") {
+      const accessory = document.createElement("span");
+      accessory.className = `decor-accessory decor-accessory-${decoration.accessory}`;
+      accessory.innerHTML = getAccessoryIconMarkup(decoration.accessory);
+      pig.append(accessory);
+    }
+
     layer.append(pig);
 
     const ricecake = document.createElement("span");
@@ -631,13 +694,14 @@ function getPlates(decoration) {
 
 function cloneDecorationForSetup(decoration, hasSavedTable) {
   if (!hasSavedTable || !decoration) {
-    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "" };
+    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "", accessory: DEFAULT_ACCESSORY };
   }
 
   return {
     bg: decoration.bg || DEFAULT_BG,
     plates: getPlates(decoration),
     wish: decoration.wish || "",
+    accessory: isValidAccessory(decoration.accessory) ? decoration.accessory : DEFAULT_ACCESSORY,
   };
 }
 
@@ -1103,10 +1167,15 @@ function parseDecoration(value) {
       bg: typeof parsed.bg === "string" && parsed.bg ? parsed.bg : DEFAULT_BG,
       plates: getPlates(parsed),
       wish: typeof parsed.wish === "string" ? parsed.wish.slice(0, 4) : "",
+      accessory: isValidAccessory(parsed.accessory) ? parsed.accessory : DEFAULT_ACCESSORY,
     };
   } catch {
-    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "" };
+    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "", accessory: DEFAULT_ACCESSORY };
   }
+}
+
+function isValidAccessory(value) {
+  return PIG_ACCESSORY_CHOICES.some((choice) => choice.value === value);
 }
 
 function jsonp(url) {

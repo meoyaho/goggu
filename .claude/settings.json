@@ -40,7 +40,25 @@
       "Bash(grep -i \"pageerror\\\\|console\" /dev/null; echo \"checked test output above already clean \\(no [pageerror] lines printed\\)\")",
       "Read(//dev/**)",
       "Bash(node test_offering_cleanup.mjs)",
-      "Bash(node test_guest_view_subtitle.mjs)"
+      "Bash(node test_guest_view_subtitle.mjs)",
+      "Bash(awk '/^function renderDecorationPreview/,/^}/' \"/Users/jisuryou/Library/Mobile Documents/com~apple~CloudDocs/뫼야/02_goods/2607_pig_head/app.js\")",
+      "Bash(node test_accessory.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/index.html --max-time 3)",
+      "Bash(pkill -f \"node test_accessory\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/index.html --max-time 5)",
+      "Bash(node test_font_check.mjs)",
+      "Bash(node test_accessory_cdp.mjs)",
+      "Bash(node test_debug_pig.mjs)",
+      "Bash(node test_accessory_flow.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-pig-ribbon.png --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8934/assets/asset-pig-flower.png --max-time 5)",
+      "Bash(node test_debug2.mjs)",
+      "Bash(curl -sI http://localhost:8934/assets/asset-pig-ribbon.png --max-time 5)",
+      "Bash(curl -s http://localhost:8934/assets/asset-pig-ribbon.png --max-time 5 -o /tmp/dl_ribbon.png)",
+      "Bash(rm -f \"/private/tmp/claude-501/-Users-jisuryou-Library-Mobile-Documents-com-apple-CloudDocs----02-goods-2607-pig-head/85e2e412-1a52-4bff-97a0-deea4507c54e/scratchpad/0_before.png\")",
+      "Bash(node test_wait_img.mjs)",
+      "Bash(node test_accessory_final.mjs)",
+      "Bash(node test_size_compare.mjs)"
     ]
   }
 }
