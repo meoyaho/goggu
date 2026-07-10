@@ -53,8 +53,11 @@ const PIG_ASSET_OPEN = PIG_ASSET;
 const PIG_BOX_ASSET = "assets/asset-pig-head-box.png";
 const RICECAKE_PLAIN_ASSET = "assets/asset-ricecake-plain.png";
 const GULBI_ASSET = "assets/asset-gulbi.png";
-const MONEY_BILL_PORTRAIT_ASSET = "assets/asset-money-portrait.png";
-const MONEY_BILL_ASSET = "assets/asset-money.png";
+const GUEST_MESSAGE_ROLL_MS = 2200;
+const LOADING_CANDY_ASSETS = {
+  red: "assets/asset-candy-red.png",
+  yellow: "assets/asset-candy-yellow.png",
+};
 const BG_COLOR_CHOICES = [
   { value: "#fff8e8", label: "미색" },
   { value: "#ece4d2", label: "상아" },
@@ -76,12 +79,13 @@ const DECORATION_ASSETS = [
   { value: "apple", label: "사과", image: "assets/asset-apple.png" },
   { value: "pear", label: "배", image: "assets/asset-pear.png" },
   { value: "orange", label: "오렌지", image: "assets/asset-orange.png" },
-  { value: "snack", label: "snack", image: "assets/asset-snack.png" },
-  { value: "pizza", label: "피자", image: "assets/pizza.png" },
-  { value: "chicken", label: "치킨", image: "assets/chicken.png" },
+  { value: "snack", label: "약과", image: "assets/asset-snack.png" },
   { value: "candy-red", label: "빨간 사탕", image: "assets/asset-candy-red.png" },
   { value: "candy-yellow", label: "노란 사탕", image: "assets/asset-candy-yellow.png" },
+  { value: "pizza", label: "피자", image: "assets/pizza.png" },
+  { value: "chicken", label: "치킨", image: "assets/chicken.png" },
 ];
+const STACKED_PLATE_ASSET_VALUES = new Set(["apple", "pear", "orange", "snack", "candy-red", "candy-yellow"]);
 const DECORATION_ASSET_ALIASES = {
   apples: "apple",
 };
@@ -158,45 +162,48 @@ async function loadData() {
 function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
   $app.innerHTML = `
     <section class="screen loading-screen" data-loading-screen>
+      <div class="loading-candy-stack" data-loading-candy-stack aria-hidden="true"></div>
       <p class="loading-caption">${caption}</p>
-      <div class="loading-pig-wrap" data-loading-pig-wrap aria-hidden="true">
-        <img class="loading-pig-image" src="${PIG_ASSET_OPEN}" alt="">
-      </div>
     </section>
   `;
-  startLoadingBillDrop();
+  startLoadingCandyStack();
 }
 
-function startLoadingBillDrop() {
-  const screen = document.querySelector("[data-loading-screen]");
-  const pigWrap = document.querySelector("[data-loading-pig-wrap]");
-  if (!screen || !pigWrap) return;
+function startLoadingCandyStack() {
+  const stack = document.querySelector("[data-loading-candy-stack]");
+  if (!stack) return;
+
+  const layerPatterns = [
+    ["red", "yellow", "yellow"],
+    ["yellow", "yellow", "red"],
+    ["yellow", "red", "yellow"],
+  ];
+  const maxLayers = 13;
+  let layerIndex = 0;
 
   const spawn = () => {
-    if (!document.body.contains(screen)) return;
+    if (!document.body.contains(stack)) return;
 
-    const screenRect = screen.getBoundingClientRect();
-    const pigRect = pigWrap.getBoundingClientRect();
-    const mouthY = pigRect.top - screenRect.top + pigRect.height * 0.718;
-    const floorY = screenRect.height * 0.8;
+    if (layerIndex >= maxLayers) {
+      layerIndex = 0;
+      stack.replaceChildren();
+    }
 
-    const bill = document.createElement("img");
-    bill.className = "loading-bill";
-    bill.src = MONEY_BILL_PORTRAIT_ASSET;
-    bill.alt = "";
-    const spin = Math.random() < 0.5 ? -1 : 1;
-    bill.style.top = `${mouthY.toFixed(1)}px`;
-    bill.style.setProperty("--drop-x", `${((Math.random() - 0.5) * 100).toFixed(1)}px`);
-    bill.style.setProperty("--drop-y", `${(floorY - mouthY - Math.random() * 24).toFixed(1)}px`);
-    bill.style.setProperty("--drop-rotate", `${(spin * (78 + Math.random() * 24)).toFixed(1)}deg`);
-    bill.style.setProperty("--land-scale-y", `${(0.52 + Math.random() * 0.16).toFixed(2)}`);
-    bill.style.setProperty("--land-scale", `${(1.25 + Math.random() * 0.3).toFixed(2)}`);
-    screen.append(bill);
+    const layer = document.createElement("div");
+    layer.className = "loading-candy-layer";
+    layer.style.setProperty("--layer-bottom", `${layerIndex * 15}px`);
 
-    const bills = screen.querySelectorAll(".loading-bill");
-    if (bills.length > 22) bills[0].remove();
+    layerPatterns[layerIndex % layerPatterns.length].forEach((color, index) => {
+      const candy = document.createElement("img");
+      candy.className = `loading-candy loading-candy-${index}`;
+      candy.src = LOADING_CANDY_ASSETS[color];
+      candy.alt = "";
+      layer.append(candy);
+    });
 
-    setTimeout(spawn, 220);
+    stack.append(layer);
+    layerIndex += 1;
+    setTimeout(spawn, 260);
   };
 
   spawn();
@@ -315,13 +322,7 @@ function renderMain() {
   document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
   document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
 
-  const showingMoney =
-    ownerMode || showGuestMessages
-      ? state.messages.length > 0
-      : !showGuestMessages && state.guestSubmissionComplete;
-  renderDecorationPreview(state.table.decoration, { openMouth: showingMoney });
-  if (ownerMode || showGuestMessages) renderPaperStack();
-  if (!ownerMode && state.guestSubmissionComplete && !showGuestMessages) renderWishOffering();
+  renderDecorationPreview(state.table.decoration);
   renderMessageFeed();
 
   document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
@@ -489,7 +490,7 @@ function addToFirstEmptyPlate(value) {
     return;
   }
   state.setupDecoration.plates[emptyIndex] = { value };
-  renderDecorationPreview(state.setupDecoration);
+  renderDecorationPreview(state.setupDecoration, { animateSlotIndex: emptyIndex });
 }
 
 function startPalettePointerDrag(event) {
@@ -532,7 +533,8 @@ function startPlacementPointerDrag(event) {
   event.preventDefault();
   const dropZone = document.querySelector("[data-drop-zone]");
   const palette = document.querySelector("[data-asset-palette]");
-  const ghost = makeDragGhostFromImage(source.querySelector(".decor-image"), event.clientX, event.clientY);
+  const decorationAsset = findDecorationAsset(asset.value);
+  const ghost = makePlateDragGhost(decorationAsset, event.clientX, event.clientY);
 
   function move(moveEvent) {
     moveGhost(ghost, moveEvent.clientX, moveEvent.clientY);
@@ -584,6 +586,15 @@ function makeDragGhostFromImage(sourceImage, x, y) {
   return ghost;
 }
 
+function makePlateDragGhost(asset, x, y) {
+  const ghost = document.createElement("span");
+  ghost.className = "asset-token-ghost plate-content-ghost";
+  if (asset) ghost.append(makePlateContent(asset, { animated: false }));
+  document.body.append(ghost);
+  moveGhost(ghost, x, y);
+  return ghost;
+}
+
 function moveGhost(ghost, x, y) {
   ghost.style.left = `${x}px`;
   ghost.style.top = `${y}px`;
@@ -598,7 +609,7 @@ function addPlacementFromPoint(value, clientX, clientY) {
   if (targetIndex == null) return;
 
   state.setupDecoration.plates[targetIndex] = { value };
-  renderDecorationPreview(state.setupDecoration);
+  renderDecorationPreview(state.setupDecoration, { animateSlotIndex: targetIndex });
 }
 
 function findNearestSlotIndex(dropZone, clientX, clientY) {
@@ -619,7 +630,7 @@ function findNearestSlotIndex(dropZone, clientX, clientY) {
   return bestIndex;
 }
 
-function renderDecorationPreview(decoration, { openMouth = false } = {}) {
+function renderDecorationPreview(decoration, { openMouth = false, animateSlotIndex = null } = {}) {
   document.querySelectorAll("[data-table-stage]").forEach((stage) => {
     const layer = stage.querySelector("[data-decor-layer]");
     const interactive = stage.hasAttribute("data-drop-zone");
@@ -670,13 +681,33 @@ function renderDecorationPreview(decoration, { openMouth = false } = {}) {
       const asset = plate ? findDecorationAsset(plate.value) : null;
       if (asset) {
         slot.classList.add("is-filled");
-        slot.append(makeDecorImage(asset.image));
+        slot.append(makePlateContent(asset, { animated: interactive && index === animateSlotIndex }));
         if (interactive) slot.title = "드래그해서 다른 접시로 옮기거나 밖으로 빼서 치울 수 있습니다";
       }
 
       layer.append(slot);
     });
   });
+}
+
+function makePlateContent(asset, { animated = false } = {}) {
+  if (!STACKED_PLATE_ASSET_VALUES.has(asset.value)) {
+    const image = makeDecorImage(asset.image);
+    image.classList.add(`plate-asset-${asset.value}`);
+    return image;
+  }
+
+  const stack = document.createElement("span");
+  stack.className = "plate-stack";
+  if (animated) stack.classList.add("is-stacking");
+
+  for (let index = 0; index < 5; index += 1) {
+    const image = makeDecorImage(asset.image);
+    image.classList.add("plate-stack-item", `plate-stack-item-${index}`);
+    stack.append(image);
+  }
+
+  return stack;
 }
 
 function makeDecorImage(src) {
@@ -773,29 +804,6 @@ function getKoreanDateParts(date = new Date()) {
   return { year, month, day };
 }
 
-function renderPaperStack() {
-  const stack = document.querySelector("[data-paper-stack]");
-  stack.innerHTML = "";
-  const visible = state.messages.slice(-9);
-  const count = visible.length;
-  if (!count) return;
-
-  const spread = Math.min(72, 22 + count * 6);
-
-  visible.forEach((_, index) => {
-    const slip = document.createElement("img");
-    slip.className = "paper-slip";
-    slip.src = MONEY_BILL_PORTRAIT_ASSET;
-    slip.alt = "";
-    const t = count === 1 ? 0.5 : index / (count - 1);
-    const angle = -spread / 2 + spread * t;
-    const jitter = ((index * 13) % 7) - 3;
-    slip.style.transform = `translateX(-50%) rotate(${(angle + jitter).toFixed(1)}deg)`;
-    slip.style.zIndex = String(index + 1);
-    stack.append(slip);
-  });
-}
-
 function renderMessageFeed() {
   const list = document.querySelector("[data-message-feed]");
   if (!list) return;
@@ -829,16 +837,17 @@ async function submitMessageForm(event) {
   }
 
   form.classList.add("is-offering");
+  const rollBar = playGuestMessageRoll(form);
   form.setAttribute("aria-hidden", "true");
   state.guestSubmissionComplete = true;
   state.guestViewingMessages = false;
   configureGuestActionButton();
-  renderDecorationPreview(state.table.decoration, { openMouth: true });
+  renderDecorationPreview(state.table.decoration, { openMouth: false });
 
-  playWishOfferingAnimation(() => {
+  const completionToastTimer = window.setTimeout(() => {
     renderMessageFeed();
     showToast("축원이 올라갔어요");
-  });
+  }, GUEST_MESSAGE_ROLL_MS);
 
   try {
     await api("addMessage", {
@@ -849,6 +858,8 @@ async function submitMessageForm(event) {
     });
     await loadData();
   } catch (error) {
+    window.clearTimeout(completionToastTimer);
+    rollBar?.remove();
     form.classList.remove("is-offering");
     form.removeAttribute("aria-hidden");
     state.guestSubmissionComplete = false;
@@ -856,6 +867,20 @@ async function submitMessageForm(event) {
     renderDecorationPreview(state.table.decoration, { openMouth: false });
     showToast(error.message || "축원을 올리지 못했습니다");
   }
+}
+
+function playGuestMessageRoll(form) {
+  const rect = form.getBoundingClientRect();
+  const rollBar = document.createElement("span");
+  rollBar.className = "guest-message-roll-bar";
+  rollBar.setAttribute("aria-hidden", "true");
+  rollBar.style.left = `${rect.left.toFixed(1)}px`;
+  rollBar.style.top = `${(rect.bottom - 24).toFixed(1)}px`;
+  rollBar.style.width = `${rect.width.toFixed(1)}px`;
+  rollBar.style.setProperty("--roll-end-y", `${(rect.top + rect.height * 0.12 - 12).toFixed(1)}px`);
+  document.body.append(rollBar);
+  rollBar.addEventListener("animationend", () => rollBar.remove(), { once: true });
+  return rollBar;
 }
 
 function openMessageModal() {
@@ -931,75 +956,6 @@ function configureGuestActionButton() {
   button.setAttribute("form", "guest-message-form");
   button.textContent = "고사상에 올리기";
   button.onclick = null;
-}
-
-function playWishOfferingAnimation(onLanded) {
-  const stage = document.querySelector("[data-table-stage]");
-  const pigImage = stage?.querySelector(".decor-pig .decor-image");
-  if (!stage || !pigImage) {
-    renderWishOffering();
-    onLanded?.();
-    return;
-  }
-
-  document.querySelectorAll(".offering-dim-overlay, .offering-flight-bill").forEach((item) => item.remove());
-
-  const pigRect = pigImage.getBoundingClientRect();
-  const mouthX = pigRect.left + pigRect.width * 0.5;
-  const mouthY = pigRect.top + pigRect.height * 0.718;
-  const flyDistance = window.innerHeight - mouthY + 90;
-
-  const overlay = document.createElement("div");
-  overlay.className = "offering-dim-overlay";
-  overlay.setAttribute("aria-hidden", "true");
-  document.body.append(overlay);
-
-  const bill = document.createElement("img");
-  bill.className = "offering-flight-bill";
-  bill.src = MONEY_BILL_ASSET;
-  bill.alt = "";
-  bill.style.left = `${mouthX.toFixed(1)}px`;
-  bill.style.top = `${mouthY.toFixed(1)}px`;
-  bill.style.setProperty("--fly-distance", `${flyDistance.toFixed(1)}px`);
-  document.body.append(bill);
-
-  requestAnimationFrame(() => overlay.classList.add("is-visible"));
-
-  bill.addEventListener(
-    "animationend",
-    () => {
-      bill.remove();
-      overlay.classList.remove("is-visible");
-      overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
-      renderWishOffering({ fadeIn: true });
-      onLanded?.();
-    },
-    { once: true },
-  );
-}
-
-function renderWishOffering({ fadeIn = false } = {}) {
-  const stage = document.querySelector("[data-table-stage]");
-  if (!stage) return;
-
-  stage.querySelectorAll(".wish-offering").forEach((item) => item.remove());
-
-  const offering = document.createElement("div");
-  offering.className = "wish-offering is-placed";
-  if (fadeIn) offering.classList.add("is-landing");
-  offering.setAttribute("aria-hidden", "true");
-
-  const bill = document.createElement("img");
-  bill.className = "wish-offering-bill";
-  bill.src = MONEY_BILL_PORTRAIT_ASSET;
-  bill.alt = "";
-
-  offering.append(bill);
-  stage.append(offering);
-
-  if (fadeIn) {
-    requestAnimationFrame(() => requestAnimationFrame(() => offering.classList.remove("is-landing")));
-  }
 }
 
 function openMessageList() {
