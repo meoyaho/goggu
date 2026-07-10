@@ -1,6 +1,6 @@
 # 번창 기원상
 
-새 시작을 응원하는 모바일 우선 정적 웹앱입니다. 주인장은 NFC 태그에 저장된 `?table=t-...&owner=...` 링크로 처음 접속해 고사상을 꾸미고, 방문자는 공유받은 `?table=t-...` 링크로 응원을 남깁니다.
+새 시작을 응원하는 모바일 우선 정적 웹앱입니다. 제주(祭主)는 NFC 태그나 복사된 주소에 담긴 `?table=t-...&mode=owner` 링크로 처음 접속해 고사상을 꾸미고, 하객(賀客)은 공유받은 `?table=t-...` 링크로 응원을 남깁니다.
 
 ## 실행
 
@@ -20,18 +20,19 @@
 
 ## 링크 구조
 
-- 주인장 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>&owner=<24자리-랜덤-토큰>`
-- 방문자 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>`
+- 제주 링크: `https://meoyaho.github.io/goggu/?table=<고정-table-id>&mode=owner`
+- 예전 제주 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>&owner=<24자리-랜덤-토큰>`
+- 하객 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>`
 
-기본 주소만 열거나 지정되지 않은 `table_id`로 접속하면 새 상을 자동 생성하지 않고 NFC 태그로 시작하라는 안내를 보여줍니다.
+기본 주소만 열거나 지정되지 않은 `table_id`로 접속하면 새 상을 자동 생성하지 않고 제주 링크로 시작하라는 안내를 보여줍니다.
 
-## NFC 태그 20개
+## 제주 링크
 
-각 NFC 태그에는 주인장 링크를 저장합니다. 주인장이 상을 차린 뒤 앱의 `사람들 초대하기` 버튼을 누르면 방문자 공유 링크만 복사됩니다.
+제주 링크는 NFC 태그에 저장해도 되고, 주소를 복사해서 직접 열어도 됩니다. 고정 제주 링크로 사용할 수 있는 `table_id`는 [app.js](app.js)의 `FIXED_OWNER_TABLE_IDS`에 등록된 값뿐입니다. 제주가 상을 차린 뒤 앱의 `하객(賀客) 초대하기` 버튼을 누르면 하객 공유 링크만 복사됩니다.
 
-실제 발급된 20개 링크는 공개 저장소에 올리지 않는 [nfc-links.private.md](nfc-links.private.md)에 보관합니다.
+실제 발급된 링크는 공개 저장소에 올리지 않는 [nfc-links.private.md](nfc-links.private.md)에 보관합니다.
 
-새 ID와 주인장 토큰이 더 필요하면 아래처럼 생성합니다.
+새 ID와 제주 토큰이 더 필요하면 아래처럼 생성합니다.
 
 ```sh
 node -e "const crypto=require('crypto'); for(let i=0;i<20;i++) console.log('t-'+crypto.randomBytes(8).toString('hex'), crypto.randomBytes(12).toString('hex'))"

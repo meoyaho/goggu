@@ -15,6 +15,30 @@ const MESSAGES_KEY = "pig_head_messages";
 const TABLE_ID_PATTERN = /^t-[a-z0-9]{16}$/;
 const LEGACY_TABLE_ID_PATTERN = /^[a-z0-9]{16}$/;
 const OWNER_TOKEN_PATTERN = /^[a-z0-9]{24}$/;
+const FIXED_OWNER_MODE = "owner";
+const FIXED_OWNER_TOKEN_SUFFIX = "gogguown";
+const FIXED_OWNER_TABLE_IDS = new Set([
+  "t-e8ac3cf260842b30",
+  "t-ab9fcafa34cc3eef",
+  "t-4ab040e4e1f339bf",
+  "t-dc5348cd924d9126",
+  "t-2f2d99123f71fc0f",
+  "t-e78b25caa0584d01",
+  "t-c95a294065b6609b",
+  "t-394ceab838b8087e",
+  "t-8c2880642a92be43",
+  "t-c536df93e2ce34f3",
+  "t-abe1a2e9cb0195f3",
+  "t-45d8b799fab2ae2a",
+  "t-e03e548dad63ac6a",
+  "t-be2e02e85ef21593",
+  "t-0834d68147684b80",
+  "t-c872a3465e6bbb24",
+  "t-ffffdfda524fd72b",
+  "t-2c62df856ff4c390",
+  "t-0ed6fd8ec723da23",
+  "t-64ee4f6069b3c1df",
+]);
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
 const DEFAULT_BG = "#f4d88b";
 const PLATE_COUNT = 6;
@@ -84,9 +108,13 @@ if (isLocalHost && window.location.search !== `?${params.toString()}`) {
 
 const tableParam = params.get("table");
 const ownerTokenParam = params.get("owner");
+const modeParam = params.get("mode");
 const tableId = isValidTableId(tableParam) ? tableParam : null;
-const ownerToken = isValidOwnerToken(ownerTokenParam) ? ownerTokenParam : null;
-const hasOwnerAccessLink = Boolean(tableId && ownerToken);
+const hasFixedOwnerMode = Boolean(
+  tableId && modeParam === FIXED_OWNER_MODE && FIXED_OWNER_TABLE_IDS.has(tableId)
+);
+const ownerToken = getOwnerToken(tableId, ownerTokenParam, hasFixedOwnerMode);
+const hasOwnerAccessLink = Boolean(tableId && ownerToken && (isValidOwnerToken(ownerTokenParam) || hasFixedOwnerMode));
 
 const state = {
   table: null,
@@ -180,8 +208,8 @@ function renderNfcStart() {
   $app.innerHTML = `
     <section class="screen nfc-screen">
       <div class="hanging-scroll nfc-scroll">
-        <p class="nfc-title">NFC 태그로 시작해주세요</p>
-        <p>이 페이지는 지정된 랜덤 고사상 링크로만 시작합니다.</p>
+        <p class="nfc-title">아직 차려지지 않은 상입니다</p>
+        <p>이 페이지는 지정된 제주(祭主) 링크로만 시작합니다.</p>
       </div>
     </section>
   `;
@@ -192,7 +220,7 @@ function renderEmpty() {
     <section class="screen">
       <div class="empty-state">
         <strong>아직 차려지지 않은 상입니다</strong>
-        <span>주인장이 NFC 태그로 먼저 접속해 상을 차리면 응원을 남길 수 있습니다.</span>
+        <span>제주(祭主)가 먼저 상을 차리면 응원을 남길 수 있습니다.</span>
       </div>
     </section>
   `;
@@ -1077,7 +1105,13 @@ function makeTableUrl(owner) {
   url.search = "";
   url.hash = "";
   url.searchParams.set("table", tableId);
-  if (owner && ownerToken) url.searchParams.set("owner", ownerToken);
+  if (owner && ownerToken) {
+    if (hasFixedOwnerMode) {
+      url.searchParams.set("mode", FIXED_OWNER_MODE);
+    } else {
+      url.searchParams.set("owner", ownerToken);
+    }
+  }
   return url.toString();
 }
 
@@ -1229,6 +1263,12 @@ function normalizeLocalTableId(value) {
   if (isValidTableId(tableValue)) return tableValue;
   if (LEGACY_TABLE_ID_PATTERN.test(tableValue)) return `t-${tableValue}`;
   return LOCAL_TEST_TABLE_ID;
+}
+
+function getOwnerToken(currentTableId, tokenParam, fixedOwnerMode) {
+  if (isValidOwnerToken(tokenParam)) return tokenParam;
+  if (fixedOwnerMode && currentTableId) return `${currentTableId.slice(2)}${FIXED_OWNER_TOKEN_SUFFIX}`;
+  return null;
 }
 
 function isValidOwnerToken(value) {
