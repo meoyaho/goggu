@@ -335,6 +335,8 @@ button {
   padding: var(--wish-input-padding);
   align-content: center;
   justify-content: center;
+  cursor: text;
+  touch-action: manipulation;
 }
 
 .wish-text-input {
@@ -345,7 +347,7 @@ button {
   height: calc(100% - var(--wish-input-padding) * 2);
   border: 0;
   padding: 0;
-  opacity: 0;
+  opacity: 0.01;
   font: inherit;
   font-size: 16px;
   line-height: 1;
