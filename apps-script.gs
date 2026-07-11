@@ -5,7 +5,7 @@ const SHEET_NAMES = {
 
 const HEADERS = {
   tables: ["table_id", "date", "owner_name", "blessing", "decoration_json", "owner_token"],
-  messages: ["table_id", "user_name", "message", "created_at"],
+  messages: ["table_id", "user_name", "message", "created_at", "theme"],
 };
 
 function doGet(event) {
@@ -87,6 +87,7 @@ function addMessage_(params) {
   const userName = clean_(params.user_name);
   const message = clean_(params.message);
   const createdAt = clean_(params.created_at) || new Date().toISOString();
+  const theme = clean_(params.theme);
 
   if (!tableId || !userName || !message) {
     throw new Error("table_id, user_name, message are required");
@@ -94,7 +95,7 @@ function addMessage_(params) {
 
   SpreadsheetApp.getActive()
     .getSheetByName(SHEET_NAMES.messages)
-    .appendRow([tableId, userName, message, createdAt]);
+    .appendRow([tableId, userName, message, createdAt, theme]);
 
   return { ok: true };
 }
@@ -124,6 +125,13 @@ function ensureSheets_() {
       firstRow[1] === "user_name" &&
       firstRow[2] === "message" &&
       !firstRow[3];
+    const hasFourColumnMessageHeaders =
+      key === "messages" &&
+      firstRow[0] === "table_id" &&
+      firstRow[1] === "user_name" &&
+      firstRow[2] === "message" &&
+      firstRow[3] === "created_at" &&
+      !firstRow[4];
 
     if (!hasHeaders) {
       if (hasLegacyTableHeaders && sheet.getLastRow() > 1) {
@@ -140,8 +148,14 @@ function ensureSheets_() {
 
       if (hasThreeColumnMessageHeaders && sheet.getLastRow() > 1) {
         const messageRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
-        const migratedRows = messageRows.map((row) => [row[0], row[1], row[2], ""]);
-        sheet.getRange(2, 1, migratedRows.length, 4).setValues(migratedRows);
+        const migratedRows = messageRows.map((row) => [row[0], row[1], row[2], "", ""]);
+        sheet.getRange(2, 1, migratedRows.length, 5).setValues(migratedRows);
+      }
+
+      if (hasFourColumnMessageHeaders && sheet.getLastRow() > 1) {
+        const messageRows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues();
+        const migratedRows = messageRows.map((row) => [row[0], row[1], row[2], row[3], ""]);
+        sheet.getRange(2, 1, migratedRows.length, 5).setValues(migratedRows);
       }
 
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);

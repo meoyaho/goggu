@@ -3,7 +3,7 @@ const LOCAL_TEST_TABLE_ID = "t-ee50a5e17cf4680c";
 const LOCAL_TEST_OWNER_TOKEN = "751820bf0f42c78b62c9c5d2";
 const isLocalHost = LOCAL_HOSTS.includes(location.hostname);
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxKOU8xw9sMljb9GJaNAU8DMz7Ak61TWMVGZ8egR25Vors-zIXMS2Xft5E7EfMT45MKdA/exec";
+  "https://script.google.com/macros/s/AKfycbxz_tY861ksGpPkgVvv4A4UMh1OdaIgfGIYmbMZu1EKbiWWK1A9IptPZOYcgUatRKuosw/exec";
 
 const CONFIG = {
   appsScriptUrl: APPS_SCRIPT_URL,
@@ -54,6 +54,40 @@ const PIG_BOX_ASSET = "assets/asset-pig-head-box.png";
 const RICECAKE_PLAIN_ASSET = "assets/asset-ricecake-plain.png";
 const GULBI_ASSET = "assets/asset-gulbi.png";
 const GUEST_MESSAGE_ROLL_MS = 2200;
+const GUEST_MESSAGE_THEMES = [
+  {
+    id: "mouth-1",
+    panelStart: "rgba(241, 250, 232, 0.96)",
+    panelEnd: "rgba(198, 231, 167, 0.92)",
+    panelAccent: "rgba(92, 173, 56, 0.34)",
+    rollImage: "assets/money-mouth-1.png",
+    rollRatio: 74 / 574,
+  },
+  {
+    id: "mouth-2",
+    panelStart: "rgba(255, 248, 204, 0.96)",
+    panelEnd: "rgba(245, 214, 72, 0.72)",
+    panelAccent: "rgba(180, 139, 24, 0.28)",
+    rollImage: "assets/money-mouth-2.png",
+    rollRatio: 126 / 578,
+  },
+];
+const PIG_MONEY_DECORATIONS = [
+  { src: "assets/money-mouth-1.png", className: "pig-money-mouth pig-money-mouth-1" },
+  { src: "assets/money-mouth-2.png", className: "pig-money-mouth pig-money-mouth-2" },
+  { src: "assets/money-mouth-3.png", className: "pig-money-mouth pig-money-mouth-3" },
+  { src: "assets/money-left-ear-1.png", className: "pig-money-ear pig-money-left-ear-1" },
+  { src: "assets/money-right-ear-1.png", className: "pig-money-ear pig-money-right-ear-1" },
+  { src: "assets/money-left-ear-2.png", className: "pig-money-ear pig-money-left-ear-2" },
+  { src: "assets/money-right-ear-2.png", className: "pig-money-ear pig-money-right-ear-2" },
+  { src: "assets/money-left-ear-3.png", className: "pig-money-ear pig-money-left-ear-3" },
+  { src: "assets/money-right-ear-3.png", className: "pig-money-ear pig-money-right-ear-3" },
+];
+const PIG_MONEY_MOUTH_2_PLACEMENT = {
+  top: 0.745,
+  width: 0.54,
+  ratio: 126 / 578,
+};
 const LOADING_CANDY_ASSETS = {
   red: "assets/asset-candy-red.png",
   yellow: "assets/asset-candy-yellow.png",
@@ -307,6 +341,7 @@ function showSetupStep(stepName) {
 }
 
 function renderMain() {
+  document.querySelectorAll(".guest-message-roll-bar").forEach((item) => item.remove());
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
   const ownerMode = isOwnerMode();
@@ -322,8 +357,11 @@ function renderMain() {
   document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
   document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
 
-  renderDecorationPreview(state.table.decoration);
+  renderDecorationPreview(state.table.decoration, {
+    pigMoneyCount: ownerMode || showGuestMessages ? state.messages.length : 0,
+  });
   renderMessageFeed();
+  applyGuestMessageTheme();
 
   document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
   document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
@@ -630,7 +668,7 @@ function findNearestSlotIndex(dropZone, clientX, clientY) {
   return bestIndex;
 }
 
-function renderDecorationPreview(decoration, { openMouth = false, animateSlotIndex = null } = {}) {
+function renderDecorationPreview(decoration, { openMouth = false, animateSlotIndex = null, pigMoneyCount = 0 } = {}) {
   document.querySelectorAll("[data-table-stage]").forEach((stage) => {
     const layer = stage.querySelector("[data-decor-layer]");
     const interactive = stage.hasAttribute("data-drop-zone");
@@ -647,6 +685,7 @@ function renderDecorationPreview(decoration, { openMouth = false, animateSlotInd
     pig.className = "decor-item decor-pig";
     pig.setAttribute("aria-hidden", "true");
     pig.append(makeDecorImage(openMouth ? PIG_ASSET_OPEN : PIG_ASSET));
+    appendPigMoneyDecorations(pig, pigMoneyCount);
 
     layer.append(pig);
 
@@ -687,6 +726,19 @@ function renderDecorationPreview(decoration, { openMouth = false, animateSlotInd
 
       layer.append(slot);
     });
+  });
+}
+
+function appendPigMoneyDecorations(pig, count) {
+  const visibleCount = Math.min(Math.max(0, count), PIG_MONEY_DECORATIONS.length);
+  PIG_MONEY_DECORATIONS.slice(0, visibleCount).forEach((decoration, index) => {
+    const image = document.createElement("img");
+    image.className = `pig-money-decor ${decoration.className}`;
+    image.src = decoration.src;
+    image.alt = "";
+    image.draggable = false;
+    image.style.zIndex = String(index + 1);
+    pig.append(image);
   });
 }
 
@@ -855,6 +907,7 @@ async function submitMessageForm(event) {
       user_name: userName,
       message,
       created_at: new Date().toISOString(),
+      theme: form.dataset.messageTheme || "",
     });
     await loadData();
   } catch (error) {
@@ -871,15 +924,38 @@ async function submitMessageForm(event) {
 
 function playGuestMessageRoll(form) {
   const rect = form.getBoundingClientRect();
+  const rollRatio = Number(form.dataset.rollRatio) || 0.13;
+  const rollHeight = Math.max(24, Math.round(rect.width * rollRatio));
+  const pigRect = document.querySelector(".table-display .decor-pig")?.getBoundingClientRect();
+  const targetWidth = pigRect ? pigRect.width * PIG_MONEY_MOUTH_2_PLACEMENT.width : rect.width * 0.18;
+  const targetHeight = targetWidth * PIG_MONEY_MOUTH_2_PLACEMENT.ratio;
+  const targetLeft = pigRect
+    ? pigRect.left + pigRect.width * 0.5 - targetWidth / 2
+    : rect.left + rect.width * 0.5 - targetWidth / 2;
+  const targetTop = pigRect
+    ? pigRect.top + pigRect.height * PIG_MONEY_MOUTH_2_PLACEMENT.top
+    : rect.top + rect.height * 0.12 - targetHeight / 2;
   const rollBar = document.createElement("span");
   rollBar.className = "guest-message-roll-bar";
   rollBar.setAttribute("aria-hidden", "true");
   rollBar.style.left = `${rect.left.toFixed(1)}px`;
-  rollBar.style.top = `${(rect.bottom - 24).toFixed(1)}px`;
+  rollBar.style.top = `${(rect.bottom - rollHeight).toFixed(1)}px`;
   rollBar.style.width = `${rect.width.toFixed(1)}px`;
-  rollBar.style.setProperty("--roll-end-y", `${(rect.top + rect.height * 0.12 - 12).toFixed(1)}px`);
+  rollBar.style.height = `${rollHeight}px`;
+  rollBar.style.setProperty("--roll-start-left", `${rect.left.toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-start-top", `${(rect.bottom - rollHeight).toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-start-width", `${rect.width.toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-start-height", `${rollHeight}px`);
+  rollBar.style.setProperty("--roll-end-y", `${(rect.top + rect.height * 0.12 - rollHeight / 2).toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-target-left", `${targetLeft.toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-target-top", `${targetTop.toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-target-width", `${targetWidth.toFixed(1)}px`);
+  rollBar.style.setProperty("--roll-target-height", `${targetHeight.toFixed(1)}px`);
+  if (form.dataset.rollImage) {
+    rollBar.style.setProperty("--guest-roll-image", `url("${form.dataset.rollImage}")`);
+  }
   document.body.append(rollBar);
-  rollBar.addEventListener("animationend", () => rollBar.remove(), { once: true });
+  rollBar.addEventListener("animationend", () => rollBar.classList.add("is-landed"), { once: true });
   return rollBar;
 }
 
@@ -912,6 +988,7 @@ async function sendMessageFromForm(form, options = {}) {
     user_name: userName,
     message,
     created_at: new Date().toISOString(),
+    theme: form.dataset.messageTheme || "",
   });
 
   await loadData();
@@ -958,6 +1035,19 @@ function configureGuestActionButton() {
   button.onclick = null;
 }
 
+function applyGuestMessageTheme() {
+  const form = document.querySelector("[data-guest-message-form]");
+  if (!form || form.hidden) return;
+
+  const theme = GUEST_MESSAGE_THEMES[Math.floor(Math.random() * GUEST_MESSAGE_THEMES.length)];
+  form.dataset.messageTheme = theme.id;
+  form.dataset.rollImage = theme.rollImage;
+  form.dataset.rollRatio = String(theme.rollRatio);
+  form.style.setProperty("--guest-message-panel-start", theme.panelStart);
+  form.style.setProperty("--guest-message-panel-end", theme.panelEnd);
+  form.style.setProperty("--guest-message-panel-accent", theme.panelAccent);
+}
+
 function openMessageList() {
   document.body.append(clone("message-list-modal-template"));
   const modal = document.querySelector("[data-message-list-modal]");
@@ -983,6 +1073,7 @@ function openMessageList() {
 function makeMessageItem(message) {
   const item = document.createElement("li");
   item.className = "message-item";
+  applyMessageThemeToElement(item, message.theme || getFallbackMessageThemeId(message));
 
   const body = document.createElement("p");
   body.textContent = message.message;
@@ -996,6 +1087,23 @@ function makeMessageItem(message) {
   footer.append(name);
   item.append(body, footer);
   return item;
+}
+
+function applyMessageThemeToElement(element, themeId) {
+  const theme = GUEST_MESSAGE_THEMES.find((item) => item.id === themeId) || GUEST_MESSAGE_THEMES[0];
+  element.dataset.messageTheme = theme.id;
+  element.style.setProperty("--message-item-start", theme.panelStart);
+  element.style.setProperty("--message-item-end", theme.panelEnd);
+  element.style.setProperty("--message-item-accent", theme.panelAccent);
+}
+
+function getFallbackMessageThemeId(message) {
+  const key = `${message.created_at || ""}${message.user_name || ""}${message.message || ""}`;
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) {
+    hash = (hash + key.charCodeAt(index)) % GUEST_MESSAGE_THEMES.length;
+  }
+  return GUEST_MESSAGE_THEMES[hash]?.id || GUEST_MESSAGE_THEMES[0].id;
 }
 
 async function inviteGuests() {
@@ -1108,6 +1216,7 @@ function localApi(action, payload) {
       user_name: payload.user_name,
       message: payload.message,
       created_at: payload.created_at || new Date().toISOString(),
+      theme: payload.theme || "",
     });
     localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
     return Promise.resolve({ ok: true });
@@ -1134,6 +1243,7 @@ function normalizeMessage(message) {
     user_name: message.user_name || "익명",
     message: message.message || "",
     created_at: message.created_at || "",
+    theme: message.theme || "",
   };
 }
 
