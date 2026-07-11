@@ -347,7 +347,7 @@ button {
   height: calc(100% - var(--wish-input-padding) * 2);
   border: 0;
   padding: 0;
-  opacity: 0.01;
+  opacity: 1;
   font: inherit;
   font-size: 16px;
   line-height: 1;
@@ -358,6 +358,7 @@ button {
   cursor: text;
   outline: 0;
   appearance: none;
+  pointer-events: auto;
 }
 
 .wish-char-input {
@@ -376,6 +377,7 @@ button {
   font-size: clamp(1.3rem, 6vw, 1.9rem);
   font-weight: 900;
   text-align: center;
+  pointer-events: none;
 }
 
 .wish-input-row:focus-within .wish-char-input {

@@ -468,19 +468,6 @@ function wireWishInputs() {
     commitValue();
   });
 
-  const focusWishInput = () => {
-    if (document.activeElement === input) return;
-
-    try {
-      input.focus({ preventScroll: true });
-    } catch {
-      input.focus();
-    }
-  };
-
-  root.addEventListener("pointerdown", focusWishInput);
-  root.addEventListener("click", focusWishInput);
-
   syncWishInputs();
 }
 
