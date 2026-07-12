@@ -274,6 +274,7 @@ button {
   padding: 0 var(--header-inline-padding);
   border-right: var(--header-side-border-width) solid var(--header-side-border);
   border-left: var(--header-side-border-width) solid var(--header-side-border);
+  border-bottom: var(--ui-line-width) solid #000;
   align-content: center;
   text-align: center;
   background: #fff;
@@ -401,7 +402,7 @@ button {
   border-radius: 0;
   color: #000;
   background: var(--control-bg);
-  font-weight: 900;
+  font-weight: 500;
   font-size: clamp(0.98rem, 4vw, 1.2rem);
 }
 
@@ -472,7 +473,7 @@ button {
   color: #fff;
   background: #000;
   font-size: clamp(0.84rem, 3.6vw, 1.18rem);
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
   transform: translate(-50%, -50%);
 }
@@ -558,7 +559,7 @@ button {
   background: #fff;
   color: #000;
   font-size: clamp(1.24rem, 11.4cqh, 2.12rem);
-  font-weight: 900;
+  font-weight: 500;
   text-align: center;
   pointer-events: none;
 }
@@ -632,6 +633,33 @@ button {
   background: #f4ff2d;
 }
 
+.group-name-card.ritual-scroll {
+  --ritual-scroll-font-size: clamp(13px, 3.1481vw, 34px);
+  align-content: stretch;
+  place-items: stretch;
+  padding: calc(var(--header-side-border-width) * 2.6);
+  overflow: hidden;
+  color: #000;
+  font-family: "Gungsuh", "GungsuhChe", "궁서", "궁서체", serif;
+}
+
+.group-name-scroll-body {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0;
+  scrollbar-width: none;
+}
+
+.group-name-scroll-body::-webkit-scrollbar {
+  display: none;
+}
+
 .group-name-card::before {
   content: "";
   position: absolute;
@@ -660,7 +688,7 @@ button {
   background: transparent;
   font-family: var(--app-font-family);
   font-size: clamp(1.24rem, 11.4cqh, 2.12rem);
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
   text-align: center;
   outline: 0;
@@ -685,7 +713,7 @@ button {
   margin: 0;
   color: #000;
   font-size: clamp(18px, 3.3333vw, 36px);
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.15;
   text-align: center;
   word-break: keep-all;
@@ -1131,7 +1159,7 @@ button {
 
 .ritual-scroll strong {
   color: var(--red-dark);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .main-blessing-scroll {
@@ -1181,7 +1209,7 @@ button {
   text-align: center;
   color: var(--red-dark);
   font-size: var(--ritual-scroll-font-size);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .sanghyang {
@@ -1199,7 +1227,7 @@ button {
   color: var(--red-dark);
   padding: 2px 4px 1px;
   font-size: var(--ritual-scroll-font-size);
-  font-weight: 900;
+  font-weight: 500;
   text-align: center;
   outline-offset: 3px;
 }
@@ -1240,7 +1268,7 @@ button {
   color: #000;
   font-family: inherit;
   font-size: clamp(20px, 4.1667vw, 45px);
-  font-weight: 900;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -1272,7 +1300,7 @@ button {
   color: #000;
   font-family: inherit;
   font-size: clamp(18px, 3.3333vw, 36px);
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.2;
   padding: var(--header-side-border-width);
 }
@@ -1858,7 +1886,7 @@ button {
   color: #000;
   background: transparent;
   font-size: var(--decor-complete-font-size);
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
 }
@@ -1915,7 +1943,7 @@ button {
   box-shadow: none;
   font-family: var(--app-font-family);
   font-size: calc(var(--header-font-size) * 0.42);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .screen-footer .main-invite-button {

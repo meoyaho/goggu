@@ -1185,6 +1185,7 @@ function syncGroupInputs(initialValue = "") {
       inputs.forEach((target) => {
         if (target !== input) target.value = input.value;
       });
+      syncGroupNameCompletionUi();
     });
   });
 }
