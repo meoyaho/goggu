@@ -51,6 +51,11 @@ const DEFAULT_DECORATION = {
   plates: new Array(PLATE_COUNT).fill(null),
   wish: "",
 };
+const DECOR_TAB_PROMPTS = {
+  bg: "테이블 컬러 두가지 골라주세요",
+  food: "원하는 음식을 골라보세요\n마음에 안들면 접시밖으로 치우면 삭제됩니다",
+  wish: "떡 위에 원하는 4글자를 작성해주세요.\n예: 성공기원",
+};
 
 const PIG_ASSET = "assets/asset-pig-head.png";
 const PIG_ASSET_OPEN = PIG_ASSET;
@@ -323,6 +328,8 @@ function renderSetup() {
   fillRitualDates(table.date);
   form.elements.owner_name.value = table.owner_name || "";
   syncGroupInputs(table.owner_name || "");
+  syncGroupNameCompletionUi();
+  form.elements.owner_name.addEventListener("input", syncGroupNameCompletionUi);
   renderAssetPalette();
   renderBgPalette();
   renderDecorationPreview(state.setupDecoration);
@@ -351,6 +358,7 @@ function renderSetup() {
     }
     showSetupStep("blessing");
     renderDecorationPreview(state.setupDecoration);
+    syncGroupNameCompletionUi();
   });
 
   document.querySelector("[data-back-setup]").addEventListener("click", () => {
@@ -358,11 +366,22 @@ function renderSetup() {
     renderDecorationPreview(state.setupDecoration);
   });
 
+  document.querySelector("[data-reset-name]").addEventListener("click", () => {
+    form.elements.owner_name.value = "";
+    syncGroupInputs("");
+    syncGroupNameCompletionUi();
+    form.elements.owner_name.focus();
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(form);
     const ownerName = clean(formData.get("owner_name"));
-    if (!ownerName) return;
+    if (!ownerName) {
+      syncGroupNameCompletionUi();
+      showToast("모임명을 입력해주세요");
+      return;
+    }
 
     renderLoading();
     await api("createOrUpdateTable", {
@@ -444,6 +463,16 @@ function syncSetupCompletionUi() {
   if (!nextButton) return;
   nextButton.classList.toggle("is-complete", isComplete);
   nextButton.setAttribute("aria-disabled", String(!isComplete));
+}
+
+function syncGroupNameCompletionUi() {
+  const input = document.querySelector("[name='owner_name']");
+  const submitButton = document.querySelector("[data-name-submit]");
+  if (!input || !submitButton) return;
+
+  const isComplete = Boolean(clean(input.value));
+  submitButton.classList.toggle("is-complete", isComplete);
+  submitButton.setAttribute("aria-disabled", String(!isComplete));
 }
 
 function showSetupStep(stepName) {
@@ -585,6 +614,13 @@ function showDecorTab(name) {
   document.querySelectorAll("[data-decor-panel]").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.decorPanel === name);
   });
+
+  const prompt = document.querySelector("[data-decor-prompt]");
+  if (prompt) {
+    prompt.textContent = DECOR_TAB_PROMPTS[name] || "";
+    prompt.classList.toggle("is-bg-prompt", name === "bg");
+    prompt.classList.toggle("is-food-prompt", name === "food" || name === "wish");
+  }
 }
 
 function wireWishInputs() {

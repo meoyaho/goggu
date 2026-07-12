@@ -24,6 +24,7 @@
   --header-side-border: #8a3828;
   --header-font-size: clamp(30px, 9.7222vw, 105px);
   --header-side-border-width: clamp(8px, 2.7778vw, 30px);
+  --ui-line-width: 2px;
   --header-inline-padding: clamp(6px, 1.2963vw, 14px);
   --bar-height: calc(var(--header-font-size) * 1.78);
   --decor-action-size: clamp(48px, 10.8333vw, 117px);
@@ -50,6 +51,16 @@ body,
 
 [hidden] {
   display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 body {
@@ -109,7 +120,7 @@ body.is-loading-view {
 .rolling-banner-group span {
   color: #fff;
   font-size: var(--rolling-banner-font-size);
-  font-weight: 900;
+  font-weight: 500;
   line-height: 1.08;
   letter-spacing: 0;
 }
@@ -202,7 +213,7 @@ button {
   box-shadow: none;
   overflow: visible;
   padding: 0;
-  border-bottom: 2px solid #000;
+  border-bottom: var(--ui-line-width) solid #000;
   z-index: 2;
 }
 
@@ -222,10 +233,11 @@ button {
 
 .primary-action:focus-visible,
 .secondary-action:focus-visible,
+.prev-setup-button:focus-visible,
 .reset-decor-button:focus-visible,
 .setup-complete-button:focus-visible,
 .icon-close:focus-visible {
-  outline: 3px solid rgba(49, 93, 79, 0.45);
+  outline: var(--ui-line-width) solid rgba(49, 93, 79, 0.45);
   outline-offset: 4px;
 }
 
@@ -333,20 +345,8 @@ button {
   min-width: 0;
 }
 
+.setup-decor-actions,
 .setup-confirm-actions {
-  width: var(--content-width);
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-}
-
-.setup-confirm-actions > button {
-  width: 100%;
-  min-width: 0;
-}
-
-.setup-decor-actions {
   width: var(--content-width);
   min-width: 0;
   min-height: var(--bar-height);
@@ -355,6 +355,22 @@ button {
   justify-content: space-between;
   gap: clamp(14px, 4vw, 56px);
   padding: 0 var(--header-side-border-width);
+}
+
+.setup-confirm-actions {
+  gap: clamp(10px, 3.2vw, 34px);
+}
+
+.setup-confirm-actions > button {
+  min-width: 0;
+}
+
+.setup-confirm-left-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--header-side-border-width);
+  min-width: 0;
 }
 
 .asset-decor {
@@ -380,8 +396,8 @@ button {
   min-width: 0;
   min-height: 36px;
   border: 0;
-  border-right: 2px solid #000;
-  border-bottom: 2px solid #000;
+  border-right: var(--ui-line-width) solid #000;
+  border-bottom: var(--ui-line-width) solid #000;
   border-radius: 0;
   color: #000;
   background: var(--control-bg);
@@ -434,7 +450,7 @@ button {
   width: min(42px, 76%);
   aspect-ratio: 1;
   border-radius: 0;
-  border: 2px solid #000;
+  border: var(--ui-line-width) solid #000;
   background: var(--swatch-color);
 }
 
@@ -462,7 +478,7 @@ button {
 }
 
 .bg-swatch.is-active-bg-target[data-bg-marker]::after {
-  outline: 2px solid #fff;
+  outline: var(--ui-line-width) solid #fff;
   outline-offset: -5px;
 }
 
@@ -537,7 +553,7 @@ button {
   height: 100%;
   display: grid;
   place-items: center;
-  border: 2px solid #000;
+  border: var(--ui-line-width) solid #000;
   border-radius: 0;
   background: #fff;
   color: #000;
@@ -561,9 +577,90 @@ button {
   width: var(--content-width);
   height: 100%;
   min-height: 0;
-  padding: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--header-side-border-width);
   overflow: hidden;
   background: var(--control-bg);
+}
+
+.setup-speech-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 2.4%;
+  z-index: 7;
+  width: clamp(230px, 67.2222vw, 726px);
+  min-height: clamp(54px, 11.3vw, 122px);
+  display: grid;
+  place-items: center;
+  padding: 0 8%;
+  border: 1px dashed #000;
+  border-radius: 50%;
+  color: #000;
+  background: var(--control-bg);
+  font-size: clamp(14px, 3.3333vw, 36px);
+  font-weight: 500;
+  line-height: 1.22;
+  text-align: center;
+  word-break: keep-all;
+  white-space: pre-line;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.setup-speech-bubble.is-bg-prompt {
+  width: clamp(220px, 64.537vw, 697px);
+}
+
+.setup-speech-bubble.is-food-prompt {
+  width: clamp(310px, 84.815vw, 916px);
+}
+
+.group-name-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--header-side-border-width) * 2);
+  border: var(--ui-line-width) solid #000;
+  background: #f4ff2d;
+}
+
+.group-name-card::before {
+  content: "";
+  position: absolute;
+  --frame-corner: clamp(20px, calc(var(--header-side-border-width) * 1.9), 58px);
+  --frame-line: var(--ui-line-width);
+  inset: var(--header-side-border-width);
+  background:
+    linear-gradient(#000, #000) top center / calc(100% - var(--frame-corner) * 2) var(--frame-line) no-repeat,
+    linear-gradient(#000, #000) bottom center / calc(100% - var(--frame-corner) * 2) var(--frame-line) no-repeat,
+    linear-gradient(#000, #000) left center / var(--frame-line) calc(100% - var(--frame-corner) * 2) no-repeat,
+    linear-gradient(#000, #000) right center / var(--frame-line) calc(100% - var(--frame-corner) * 2) no-repeat,
+    radial-gradient(circle at 0 0, transparent calc(var(--frame-corner) - var(--frame-line)), #000 calc(var(--frame-corner) - var(--frame-line)) var(--frame-corner), transparent var(--frame-corner)) left top / var(--frame-corner) var(--frame-corner) no-repeat,
+    radial-gradient(circle at 100% 0, transparent calc(var(--frame-corner) - var(--frame-line)), #000 calc(var(--frame-corner) - var(--frame-line)) var(--frame-corner), transparent var(--frame-corner)) right top / var(--frame-corner) var(--frame-corner) no-repeat,
+    radial-gradient(circle at 0 100%, transparent calc(var(--frame-corner) - var(--frame-line)), #000 calc(var(--frame-corner) - var(--frame-line)) var(--frame-corner), transparent var(--frame-corner)) left bottom / var(--frame-corner) var(--frame-corner) no-repeat,
+    radial-gradient(circle at 100% 100%, transparent calc(var(--frame-corner) - var(--frame-line)), #000 calc(var(--frame-corner) - var(--frame-line)) var(--frame-corner), transparent var(--frame-corner)) right bottom / var(--frame-corner) var(--frame-corner) no-repeat;
+  pointer-events: none;
+}
+
+.group-name-input {
+  position: relative;
+  z-index: 1;
+  width: min(78%, 640px);
+  border: 0;
+  padding: 0;
+  color: #000;
+  background: transparent;
+  font-family: var(--app-font-family);
+  font-size: clamp(1.24rem, 11.4cqh, 2.12rem);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  outline: 0;
+  appearance: none;
 }
 
 .message-feed-panel {
@@ -879,7 +976,7 @@ button {
   background:
     linear-gradient(90deg, rgba(112, 31, 26, 0.12), transparent 8%, transparent 92%, rgba(112, 31, 26, 0.12)),
     linear-gradient(180deg, #fff6d8 0%, #fde7a5 100%);
-  border: 1px solid rgba(111, 31, 26, 0.2);
+  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.2);
   border-radius: var(--radius);
 }
 
@@ -1079,7 +1176,7 @@ button {
   width: min(42vw, 160px);
   min-width: 98px;
   border: 0;
-  border-bottom: 2px solid rgba(111, 31, 26, 0.38);
+  border-bottom: var(--ui-line-width) solid rgba(111, 31, 26, 0.38);
   border-radius: 0;
   background: rgba(255, 255, 255, 0.34);
   color: var(--red-dark);
@@ -1132,7 +1229,7 @@ button {
 .stacked-field input,
 .stacked-field textarea {
   width: 100%;
-  border: 1px solid rgba(36, 27, 24, 0.18);
+  border: var(--ui-line-width) solid rgba(36, 27, 24, 0.18);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.64);
   color: var(--ink);
@@ -1204,7 +1301,7 @@ button {
   justify-items: center;
   gap: 7px;
   padding: 10px 6px;
-  border: 1px solid rgba(111, 31, 26, 0.18);
+  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.18);
   border-radius: var(--radius);
   color: var(--ink);
   background: rgba(255, 255, 255, 0.48);
@@ -1653,6 +1750,7 @@ button {
   margin-top: 0;
 }
 
+.prev-setup-button,
 .reset-decor-button,
 .setup-complete-button {
   appearance: none;
@@ -1661,6 +1759,7 @@ button {
   cursor: pointer;
 }
 
+.prev-setup-button,
 .reset-decor-button {
   flex: 0 0 auto;
   width: var(--decor-action-size);
@@ -1673,12 +1772,24 @@ button {
   background: #000;
 }
 
+.prev-setup-icon {
+  width: 68%;
+  height: 68%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.4;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  overflow: visible;
+  transform: translateX(-7%);
+}
+
 .reset-decor-icon {
   width: 68%;
   height: 68%;
   fill: none;
   stroke: currentColor;
-  stroke-width: 4.4;
+  stroke-width: 3.4;
   stroke-linecap: square;
   stroke-linejoin: miter;
   overflow: visible;
@@ -1695,7 +1806,7 @@ button {
   justify-content: center;
   gap: calc(var(--decor-action-size) * 0.12);
   padding: 0 calc(var(--decor-action-size) * 0.28);
-  border: max(3px, calc(var(--decor-action-size) * 0.027)) solid #000;
+  border: var(--ui-line-width) solid #000;
   border-radius: 999px;
   color: #000;
   background: transparent;
@@ -1703,6 +1814,10 @@ button {
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
+}
+
+.setup-confirm-actions .setup-complete-button {
+  max-width: calc(100vw - var(--decor-action-size) * 2 - var(--header-side-border-width) * 4);
 }
 
 .setup-complete-button.is-complete {
@@ -1727,7 +1842,7 @@ button {
   justify-content: center;
   min-height: 52px;
   border-radius: var(--radius);
-  border: 1px solid transparent;
+  border: var(--ui-line-width) solid transparent;
   padding: 0 18px;
   font-weight: 800;
   letter-spacing: 0;
@@ -1784,7 +1899,7 @@ button {
   position: relative;
   border-radius: var(--radius);
   background: #fff9e9;
-  border: 1px solid rgba(111, 31, 26, 0.2);
+  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.2);
 }
 
 .message-card {
@@ -1836,7 +1951,7 @@ button {
   min-height: 82px;
   padding: 15px 16px;
   overflow: hidden;
-  border: 1px solid rgba(91, 66, 48, 0.2);
+  border: var(--ui-line-width) solid rgba(91, 66, 48, 0.2);
   border-radius: 8px;
   background:
     radial-gradient(circle at 82% 84%, var(--message-item-accent, rgba(124, 87, 48, 0.08)), transparent 36%),
@@ -1868,7 +1983,7 @@ button {
   right: 10px;
   width: 36px;
   height: 36px;
-  border: 1px solid rgba(36, 27, 24, 0.12);
+  border: var(--ui-line-width) solid rgba(36, 27, 24, 0.12);
   border-radius: 50%;
   color: var(--ink);
   background: rgba(255, 255, 255, 0.55);
@@ -1899,7 +2014,7 @@ button {
   padding: 22px;
   text-align: center;
   background: rgba(255, 248, 232, 0.72);
-  border: 1px solid rgba(111, 31, 26, 0.16);
+  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.16);
   border-radius: var(--radius);
 }
 
