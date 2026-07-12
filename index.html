@@ -176,27 +176,31 @@
         <div class="setup-content main-content">
           <div class="table-stage table-display" data-table-stage>
             <div class="decor-layer" data-decor-layer></div>
+            <div class="setup-speech-bubble main-guest-prompt" data-guest-prompt hidden></div>
           </div>
 
           <section class="message-feed-panel" aria-label="응원 리스트">
+            <p class="message-feed-count" data-message-count></p>
             <ul class="message-feed" data-message-feed></ul>
           </section>
 
           <form class="guest-message-panel" id="guest-message-form" data-guest-message-form hidden>
-            <label>
-              <span>올리는 이</span>
-              <input name="user_name" placeholder="이름을 남겨주세요" maxlength="18" required>
-            </label>
-            <label class="guest-message-body">
-              <span>축원</span>
-              <textarea name="message" placeholder="응원의 말을 적어주세요" maxlength="100" required></textarea>
-            </label>
+            <div class="guest-message-card">
+              <label>
+                <span>올리는 이</span>
+                <input name="user_name" placeholder="이름을 남겨주세요" maxlength="18" required>
+              </label>
+              <label class="guest-message-body">
+                <span>축원</span>
+                <textarea name="message" placeholder="응원의 말을 적어주세요" maxlength="100" required></textarea>
+              </label>
+            </div>
           </form>
         </div>
 
         <footer class="screen-footer action-bar">
-          <button class="primary-action" type="button" data-owner-only data-invite>사람들 초대하기</button>
-          <button class="primary-action" type="submit" form="guest-message-form" data-guest-only>고사상에 올리기</button>
+          <button class="primary-action main-invite-button" type="button" data-owner-only data-invite>사람들 초대하기</button>
+          <button class="primary-action main-invite-button" type="submit" form="guest-message-form" data-guest-only>고사상에 올리기</button>
         </footer>
       </section>
     </template>

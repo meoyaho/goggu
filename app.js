@@ -62,23 +62,21 @@ const PIG_ASSET_OPEN = PIG_ASSET;
 const PIG_BOX_ASSET = "assets/asset-pig-head-box.png";
 const RICECAKE_PLAIN_ASSET = "assets/asset-ricecake-plain.png";
 const GULBI_ASSET = "assets/asset-gulbi.png";
-const GUEST_MESSAGE_ROLL_MS = 2200;
+const GUEST_MESSAGE_OFFER_MS = 2200;
 const GUEST_MESSAGE_THEMES = [
   {
     id: "mouth-1",
-    panelStart: "rgba(241, 250, 232, 0.96)",
-    panelEnd: "rgba(198, 231, 167, 0.92)",
-    panelAccent: "rgba(92, 173, 56, 0.34)",
-    rollImage: "assets/money-mouth-1.png",
-    rollRatio: 74 / 574,
+    cardBg: "#97e872",
+    panelStart: "#97e872",
+    panelEnd: "#97e872",
+    panelAccent: "rgba(66, 148, 44, 0.28)",
   },
   {
     id: "mouth-2",
-    panelStart: "rgba(255, 248, 204, 0.96)",
-    panelEnd: "rgba(245, 214, 72, 0.72)",
+    cardBg: "#f4ff2d",
+    panelStart: "#f4ff2d",
+    panelEnd: "#f4ff2d",
     panelAccent: "rgba(180, 139, 24, 0.28)",
-    rollImage: "assets/money-mouth-2.png",
-    rollRatio: 126 / 578,
   },
 ];
 const PIG_MONEY_DECORATIONS = [
@@ -289,25 +287,27 @@ function startLoadingCandyStack() {
 }
 
 function renderNfcStart() {
-  setLoadingView(false);
+  setLoadingView(true);
   $app.innerHTML = `
-    <section class="screen nfc-screen">
-      <div class="hanging-scroll nfc-scroll">
-        <p class="nfc-title">아직 차려지지 않은 상입니다</p>
-        <p>이 페이지는 지정된 제주(祭主) 링크로만 시작합니다.</p>
+    <section class="screen empty-screen nfc-screen">
+      <div class="empty-state">
+        <strong>아직 차려지지 않은 상입니다</strong>
+        <span>이 페이지는 지정된 제주(祭主) 링크로만 시작합니다.</span>
       </div>
+      <p class="loading-copyright">Copyright. © meoya</p>
     </section>
   `;
 }
 
 function renderEmpty() {
-  setLoadingView(false);
+  setLoadingView(true);
   $app.innerHTML = `
-    <section class="screen">
+    <section class="screen empty-screen">
       <div class="empty-state">
         <strong>아직 차려지지 않은 상입니다</strong>
         <span>제주(祭主)가 먼저 상을 차리면 응원을 남길 수 있습니다.</span>
       </div>
+      <p class="loading-copyright">Copyright. © meoya</p>
     </section>
   `;
 }
@@ -483,7 +483,7 @@ function showSetupStep(stepName) {
 
 function renderMain() {
   setLoadingView(false);
-  document.querySelectorAll(".guest-message-roll-bar").forEach((item) => item.remove());
+  document.querySelectorAll(".guest-message-flight-card").forEach((item) => item.remove());
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
   const ownerMode = isOwnerMode();
@@ -494,6 +494,7 @@ function renderMain() {
   document.querySelector("[data-guest-only]").hidden = ownerMode;
   document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
   document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
+  syncGuestPrompt(ownerMode || showGuestMessages);
 
   renderDecorationPreview(state.table.decoration, {
     pigMoneyCount: ownerMode || showGuestMessages ? state.messages.length : 0,
@@ -504,6 +505,25 @@ function renderMain() {
   document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
   document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
   configureGuestActionButton();
+}
+
+function syncGuestPrompt(hidden) {
+  const prompt = document.querySelector("[data-guest-prompt]");
+  if (!prompt) return;
+
+  const groupName = clean(state.table?.owner_name || "모임명");
+  prompt.textContent = `${groupName}${getObjectParticle(groupName)} 응원하고 좋은 기운 나눠가져요!`;
+  prompt.hidden = hidden;
+}
+
+function getObjectParticle(value) {
+  const chars = [...clean(value)];
+  const lastChar = chars[chars.length - 1];
+  if (!lastChar) return "을";
+
+  const code = lastChar.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return "을";
+  return (code - 0xac00) % 28 === 0 ? "를" : "을";
 }
 
 function renderAssetPalette() {
@@ -1214,12 +1234,14 @@ function renderMessageFeed() {
   const list = document.querySelector("[data-message-feed]");
   if (!list) return;
 
+  const count = state.messages.length;
+  const countLabel = document.querySelector("[data-message-count]");
+  if (countLabel) {
+    countLabel.textContent = `총 ${count}개의 축원이 올라갔습니다`;
+  }
+
   list.innerHTML = "";
-  if (!state.messages.length) {
-    const empty = document.createElement("li");
-    empty.className = "message-empty";
-    empty.textContent = "아직 도착한 응원이 없습니다.";
-    list.append(empty);
+  if (!count) {
     return;
   }
 
@@ -1243,7 +1265,7 @@ async function submitMessageForm(event) {
   }
 
   form.classList.add("is-offering");
-  const rollBar = playGuestMessageRoll(form);
+  const flightCard = playGuestMessageFold(form);
   form.setAttribute("aria-hidden", "true");
   state.guestSubmissionComplete = true;
   state.guestViewingMessages = false;
@@ -1253,7 +1275,7 @@ async function submitMessageForm(event) {
   const completionToastTimer = window.setTimeout(() => {
     renderMessageFeed();
     showToast("축원이 올라갔어요");
-  }, GUEST_MESSAGE_ROLL_MS);
+  }, GUEST_MESSAGE_OFFER_MS);
 
   try {
     await api("addMessage", {
@@ -1266,7 +1288,7 @@ async function submitMessageForm(event) {
     await loadData();
   } catch (error) {
     window.clearTimeout(completionToastTimer);
-    rollBar?.remove();
+    flightCard?.remove();
     form.classList.remove("is-offering");
     form.removeAttribute("aria-hidden");
     state.guestSubmissionComplete = false;
@@ -1276,41 +1298,60 @@ async function submitMessageForm(event) {
   }
 }
 
-function playGuestMessageRoll(form) {
-  const rect = form.getBoundingClientRect();
-  const rollRatio = Number(form.dataset.rollRatio) || 0.13;
-  const rollHeight = Math.max(24, Math.round(rect.width * rollRatio));
+function playGuestMessageFold(form) {
+  const card = form.querySelector(".guest-message-card");
+  const rect = (card || form).getBoundingClientRect();
   const pigRect = document.querySelector(".table-display .decor-pig")?.getBoundingClientRect();
-  const targetWidth = pigRect ? pigRect.width * PIG_MONEY_MOUTH_2_PLACEMENT.width : rect.width * 0.18;
-  const targetHeight = targetWidth * PIG_MONEY_MOUTH_2_PLACEMENT.ratio;
+  const foldedHeight = Math.max(22, Math.round(rect.height * 0.14));
+  const targetWidth = pigRect ? pigRect.width * PIG_MONEY_MOUTH_2_PLACEMENT.width : rect.width * 0.26;
+  const targetHeight = Math.max(5, targetWidth * PIG_MONEY_MOUTH_2_PLACEMENT.ratio * 0.25);
   const targetLeft = pigRect
     ? pigRect.left + pigRect.width * 0.5 - targetWidth / 2
     : rect.left + rect.width * 0.5 - targetWidth / 2;
   const targetTop = pigRect
     ? pigRect.top + pigRect.height * PIG_MONEY_MOUTH_2_PLACEMENT.top
     : rect.top + rect.height * 0.12 - targetHeight / 2;
-  const rollBar = document.createElement("span");
-  rollBar.className = "guest-message-roll-bar";
-  rollBar.setAttribute("aria-hidden", "true");
-  rollBar.style.left = `${rect.left.toFixed(1)}px`;
-  rollBar.style.top = `${(rect.bottom - rollHeight).toFixed(1)}px`;
-  rollBar.style.width = `${rect.width.toFixed(1)}px`;
-  rollBar.style.height = `${rollHeight}px`;
-  rollBar.style.setProperty("--roll-start-left", `${rect.left.toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-start-top", `${(rect.bottom - rollHeight).toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-start-width", `${rect.width.toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-start-height", `${rollHeight}px`);
-  rollBar.style.setProperty("--roll-end-y", `${(rect.top + rect.height * 0.12 - rollHeight / 2).toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-target-left", `${targetLeft.toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-target-top", `${targetTop.toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-target-width", `${targetWidth.toFixed(1)}px`);
-  rollBar.style.setProperty("--roll-target-height", `${targetHeight.toFixed(1)}px`);
-  if (form.dataset.rollImage) {
-    rollBar.style.setProperty("--guest-roll-image", `url("${form.dataset.rollImage}")`);
+  const flightCard = (card || form).cloneNode(true);
+  flightCard.classList.add("guest-message-flight-card");
+  flightCard.setAttribute("aria-hidden", "true");
+  const cardStyles = getComputedStyle(card || form);
+  const cardBg = cardStyles.getPropertyValue("--guest-message-card-bg").trim();
+  if (cardBg) {
+    flightCard.style.setProperty("--guest-message-card-bg", cardBg);
   }
-  document.body.append(rollBar);
-  rollBar.addEventListener("animationend", () => rollBar.classList.add("is-landed"), { once: true });
-  return rollBar;
+
+  const sourceFields = [...(card || form).querySelectorAll("input, textarea")];
+  const flightFields = [...flightCard.querySelectorAll("input, textarea")];
+  flightFields.forEach((field, index) => {
+    const value = sourceFields[index]?.value || "";
+    field.value = value;
+    if (field.tagName === "TEXTAREA") {
+      field.textContent = value;
+    } else {
+      field.setAttribute("value", value);
+    }
+    field.tabIndex = -1;
+    field.readOnly = true;
+  });
+
+  flightCard.style.setProperty("--card-start-left", `${rect.left.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-start-top", `${rect.top.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-start-width", `${rect.width.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-start-height", `${rect.height.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-folded-height", `${foldedHeight}px`);
+  flightCard.style.setProperty("--card-target-left", `${targetLeft.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-target-top", `${targetTop.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-target-width", `${targetWidth.toFixed(1)}px`);
+  flightCard.style.setProperty("--card-target-height", `${targetHeight.toFixed(1)}px`);
+  document.body.append(flightCard);
+
+  const handleAnimationEnd = (event) => {
+    if (event.animationName !== "guest-message-card-fly") return;
+    flightCard.classList.add("is-landed");
+    flightCard.removeEventListener("animationend", handleAnimationEnd);
+  };
+  flightCard.addEventListener("animationend", handleAnimationEnd);
+  return flightCard;
 }
 
 function openMessageModal() {
@@ -1395,8 +1436,7 @@ function applyGuestMessageTheme() {
 
   const theme = GUEST_MESSAGE_THEMES[Math.floor(Math.random() * GUEST_MESSAGE_THEMES.length)];
   form.dataset.messageTheme = theme.id;
-  form.dataset.rollImage = theme.rollImage;
-  form.dataset.rollRatio = String(theme.rollRatio);
+  form.style.setProperty("--guest-message-card-bg", theme.cardBg);
   form.style.setProperty("--guest-message-panel-start", theme.panelStart);
   form.style.setProperty("--guest-message-panel-end", theme.panelEnd);
   form.style.setProperty("--guest-message-panel-accent", theme.panelAccent);
