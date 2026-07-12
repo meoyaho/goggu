@@ -13,6 +13,11 @@
   --content-width: min(100%, 440px);
   --shell-padding-x: 16px;
   --region-gap: 14px;
+  --rolling-banner-height: 34px;
+  --rolling-banner-offset: calc(var(--rolling-banner-height) + env(safe-area-inset-top));
+  --screen-height: calc(100dvh - var(--rolling-banner-offset));
+  --screen-min-height: calc(100vh - var(--rolling-banner-offset));
+  --loading-bg: #aaff4d;
   font-family: "Gungsuh", "GungsuhChe", "궁서", "궁서체", serif;
 }
 
@@ -27,11 +32,72 @@
 body {
   margin: 0;
   min-height: 100vh;
+  padding-top: var(--rolling-banner-offset);
   color: var(--ink);
   overflow-x: hidden;
   background:
     radial-gradient(circle at 18% 8%, rgba(184, 135, 69, 0.22), transparent 26rem),
     linear-gradient(180deg, #fffdf5 0%, #f4ead7 55%, #e7cfaa 100%);
+}
+
+body.is-loading-view {
+  background: var(--loading-bg);
+}
+
+.rolling-banner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 50;
+  height: var(--rolling-banner-offset);
+  padding-top: env(safe-area-inset-top);
+  overflow: hidden;
+  color: #fff;
+  background: #000;
+  user-select: none;
+  pointer-events: none;
+}
+
+.rolling-banner-window {
+  height: var(--rolling-banner-height);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.rolling-banner-track {
+  display: flex;
+  width: max-content;
+  animation: rolling-banner-slide 34s linear infinite;
+  will-change: transform;
+}
+
+.rolling-banner-group {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  padding-right: 34px;
+  white-space: nowrap;
+}
+
+.rolling-banner-group span {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+@keyframes rolling-banner-slide {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 button,
@@ -46,15 +112,15 @@ button {
 
 .app-shell {
   width: min(100%, 760px);
-  height: 100dvh;
-  min-height: 100vh;
+  height: var(--screen-height);
+  min-height: var(--screen-min-height);
   margin: 0 auto;
   padding: 0 var(--shell-padding-x);
   overflow: hidden;
 }
 
 .screen {
-  min-height: 100dvh;
+  min-height: var(--screen-height);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -62,12 +128,17 @@ button {
 
 .loading-screen {
   position: relative;
-  min-height: 100dvh;
-  justify-content: center;
-  gap: 18px;
+  min-height: var(--screen-height);
+  width: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: 0;
   box-sizing: border-box;
-  padding-top: 72px;
+  padding: clamp(28px, 8dvh, 76px) 16px max(22px, env(safe-area-inset-bottom));
   overflow: hidden;
+  background: var(--loading-bg);
 }
 
 .setup-screen {
@@ -76,7 +147,7 @@ button {
 }
 
 .main-screen {
-  height: 100dvh;
+  height: var(--screen-height);
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -134,7 +205,7 @@ button {
 
 .setup-step.is-active {
   display: grid;
-  height: 100dvh;
+  height: var(--screen-height);
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
   align-content: stretch;
@@ -146,7 +217,7 @@ button {
   display: grid;
   min-height: clamp(80px, 10dvh, 92px);
   gap: 6px;
-  padding-top: max(24px, env(safe-area-inset-top));
+  padding-top: 24px;
   align-content: start;
   text-align: center;
 }
@@ -640,7 +711,7 @@ button {
 
 .blessing-panel {
   width: var(--content-width);
-  padding-top: max(18px, env(safe-area-inset-top));
+  padding-top: 18px;
 }
 
 .hanging-scroll {
@@ -659,19 +730,53 @@ button {
   gap: 12px;
 }
 
-.loading-caption {
-  margin: 0;
-  color: var(--red-dark);
-  font-size: clamp(1.05rem, 4.4vw, 1.32rem);
-  font-weight: 900;
-  text-align: center;
+.loading-layout {
+  width: min(100%, 320px);
+  display: grid;
+  justify-items: center;
+  gap: clamp(20px, 4.1dvh, 32px);
+  transform: translateY(clamp(-32px, -4dvh, -18px));
+}
+
+.loading-logo {
+  width: min(30vw, 136px);
+  height: auto;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.16));
+}
+
+.loading-offering {
+  position: relative;
+  width: min(42vw, 176px);
+  height: min(53vw, 218px);
+}
+
+.loading-bowl {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 1;
+  width: 82%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 8px 10px rgba(62, 24, 12, 0.22));
+  pointer-events: none;
+  user-select: none;
 }
 
 .loading-candy-stack {
-  position: relative;
-  width: min(62vw, 240px);
-  height: min(76vw, 304px);
+  position: absolute;
+  left: 50%;
+  bottom: 27%;
+  z-index: 2;
+  width: 132px;
+  height: 188px;
   overflow: visible;
+  transform: translateX(-50%) scale(0.8);
+  transform-origin: center bottom;
 }
 
 .loading-candy-layer {
@@ -680,8 +785,8 @@ button {
   bottom: var(--layer-bottom);
   width: 132px;
   height: 104px;
-  transform: translate(-50%, 0);
   opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .loading-candy {
@@ -710,6 +815,28 @@ button {
   right: 15px;
   top: 50px;
   z-index: 1;
+}
+
+.loading-caption {
+  margin: 0;
+  color: #15290b;
+  font-size: clamp(0.98rem, 3.9vw, 1.18rem);
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(21, 41, 11, 0.16);
+  word-break: keep-all;
+}
+
+.loading-copyright {
+  align-self: end;
+  margin: 0;
+  color: rgba(21, 41, 11, 0.58);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
 }
 
 .ritual-scroll {

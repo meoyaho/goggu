@@ -92,6 +92,8 @@ const LOADING_CANDY_ASSETS = {
   red: "assets/asset-candy-red.png",
   yellow: "assets/asset-candy-yellow.png",
 };
+const LOADING_LOGO_ASSET = "assets/meoya-logo.png";
+const LOADING_BOWL_ASSET = "assets/asset-bowl.png";
 const BG_COLOR_CHOICES = [
   { value: "#fff8e8", label: "미색" },
   { value: "#ece4d2", label: "상아" },
@@ -194,13 +196,25 @@ async function loadData() {
 }
 
 function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
+  setLoadingView(true);
   $app.innerHTML = `
     <section class="screen loading-screen" data-loading-screen>
-      <div class="loading-candy-stack" data-loading-candy-stack aria-hidden="true"></div>
-      <p class="loading-caption">${caption}</p>
+      <div class="loading-layout">
+        <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya">
+        <div class="loading-offering" aria-hidden="true">
+          <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
+          <div class="loading-candy-stack" data-loading-candy-stack></div>
+        </div>
+        <p class="loading-caption">${caption}</p>
+      </div>
+      <p class="loading-copyright">Copyright. © meoya</p>
     </section>
   `;
   startLoadingCandyStack();
+}
+
+function setLoadingView(isLoading) {
+  document.body.classList.toggle("is-loading-view", isLoading);
 }
 
 function startLoadingCandyStack() {
@@ -212,7 +226,7 @@ function startLoadingCandyStack() {
     ["yellow", "yellow", "red"],
     ["yellow", "red", "yellow"],
   ];
-  const maxLayers = 13;
+  const maxLayers = 6;
   let layerIndex = 0;
 
   const spawn = () => {
@@ -237,13 +251,14 @@ function startLoadingCandyStack() {
 
     stack.append(layer);
     layerIndex += 1;
-    setTimeout(spawn, 260);
+    setTimeout(spawn, layerIndex >= maxLayers ? 900 : 260);
   };
 
   spawn();
 }
 
 function renderNfcStart() {
+  setLoadingView(false);
   $app.innerHTML = `
     <section class="screen nfc-screen">
       <div class="hanging-scroll nfc-scroll">
@@ -255,6 +270,7 @@ function renderNfcStart() {
 }
 
 function renderEmpty() {
+  setLoadingView(false);
   $app.innerHTML = `
     <section class="screen">
       <div class="empty-state">
@@ -266,6 +282,7 @@ function renderEmpty() {
 }
 
 function renderSetup() {
+  setLoadingView(false);
   $app.replaceChildren(clone("setup-template"));
   const form = document.querySelector("[data-setup-form]");
   const table = state.table || {
@@ -341,6 +358,7 @@ function showSetupStep(stepName) {
 }
 
 function renderMain() {
+  setLoadingView(false);
   document.querySelectorAll(".guest-message-roll-bar").forEach((item) => item.remove());
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
