@@ -40,10 +40,14 @@ const FIXED_OWNER_TABLE_IDS = new Set([
   "t-64ee4f6069b3c1df",
 ]);
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
-const DEFAULT_BG = "#f4d88b";
+const DEFAULT_BG_OUTER = "#aaff4d";
+const DEFAULT_BG_INNER = "#d86bf1";
+const DEFAULT_BG = DEFAULT_BG_INNER;
 const PLATE_COUNT = 6;
 const DEFAULT_DECORATION = {
-  bg: DEFAULT_BG,
+  bg: DEFAULT_BG_INNER,
+  bgOuter: DEFAULT_BG_OUTER,
+  bgInner: DEFAULT_BG_INNER,
   plates: new Array(PLATE_COUNT).fill(null),
   wish: "",
 };
@@ -95,35 +99,55 @@ const LOADING_CANDY_ASSETS = {
 const LOADING_LOGO_ASSET = "assets/meoya-logo.png";
 const LOADING_BOWL_ASSET = "assets/asset-bowl.png";
 const BG_COLOR_CHOICES = [
-  { value: "#fff8e8", label: "미색" },
-  { value: "#ece4d2", label: "상아" },
-  { value: "#f4d88b", label: "황금" },
-  { value: "#e3ab52", label: "황토" },
-  { value: "#b88745", label: "황동" },
-  { value: "#9f2f25", label: "홍색" },
-  { value: "#6f1f1a", label: "적갈" },
-  { value: "#315d4f", label: "청록" },
-  { value: "#1f3a5f", label: "남색" },
-  { value: "#2b1713", label: "흑칠" },
-  { value: "#c97a6d", label: "분홍" },
+  { value: DEFAULT_BG_OUTER, label: "연두" },
+  { value: DEFAULT_BG_INNER, label: "분홍보라" },
+  { value: "#f3f442", label: "노랑" },
+  { value: "#e43b22", label: "주홍" },
+  { value: "#4285f4", label: "파랑" },
+  { value: "#9b392f", label: "갈색" },
   { value: "#e2b47c", label: "살구" },
-  { value: "#8a9b5c", label: "연두" },
-  { value: "#5c3a6b", label: "보라" },
-  { value: "#8b8478", label: "은회" },
+  { value: "#3b6653", label: "청록" },
+  { value: "#283f63", label: "남색" },
+  { value: "#2b1713", label: "흑갈" },
+  { value: "#fff8e8", label: "미색" },
+  { value: "#a93af0", label: "보라" },
+  { value: "#00cc3a", label: "초록" },
+  { value: "#2d2d2d", label: "검정" },
+  { value: "#ff7a12", label: "주황" },
 ];
 const DECORATION_ASSETS = [
   { value: "apple", label: "사과", image: "assets/asset-apple.png" },
   { value: "pear", label: "배", image: "assets/asset-pear.png" },
+  { value: "persimmon", label: "감", image: "assets/asset-persimmon.png" },
   { value: "orange", label: "오렌지", image: "assets/asset-orange.png" },
-  { value: "snack", label: "약과", image: "assets/asset-snack.png" },
-  { value: "candy-red", label: "빨간 사탕", image: "assets/asset-candy-red.png" },
-  { value: "candy-yellow", label: "노란 사탕", image: "assets/asset-candy-yellow.png" },
-  { value: "pizza", label: "피자", image: "assets/pizza.png" },
-  { value: "chicken", label: "치킨", image: "assets/chicken.png" },
+  { value: "candy", label: "사탕", image: LOADING_CANDY_ASSETS.red, images: [LOADING_CANDY_ASSETS.red, LOADING_CANDY_ASSETS.yellow] },
+  { value: "grape", label: "포도", image: "assets/asset-grape.png" },
+  { value: "pineapple", label: "파인애플", image: "assets/asset-pineapple.png" },
+  { value: "watermelon", label: "수박", image: "assets/asset-watermelon.png" },
+  { value: "snack", label: "과자", image: "assets/asset-snack.png" },
+  { value: "mandu", label: "만두", image: "assets/asset-mandu.png" },
+  { value: "pizza", label: "피자", image: "assets/asset-pizza.png" },
+  { value: "chicken", label: "치킨", image: "assets/asset-chicken.png" },
+  { value: "hamburger", label: "햄버거", image: "assets/asset-hamburger.png" },
+  { value: "sushi", label: "초밥", image: "assets/asset-sushi.png" },
+  { value: "tteok", label: "떡볶이", image: "assets/asset-tteok.png" },
+  { value: "mara", label: "마라탕", image: "assets/asset-mara.png" },
 ];
-const STACKED_PLATE_ASSET_VALUES = new Set(["apple", "pear", "orange", "snack", "candy-red", "candy-yellow"]);
+const PLATE_STACK_COUNTS = new Map([
+  ["apple", 5],
+  ["pear", 5],
+  ["persimmon", 5],
+  ["orange", 5],
+  ["candy", 5],
+  ["snack", 5],
+  ["mandu", 5],
+  ["sushi", 5],
+  ["pizza", 3],
+]);
 const DECORATION_ASSET_ALIASES = {
   apples: "apple",
+  "candy-red": "candy",
+  "candy-yellow": "candy",
 };
 
 const $app = document.querySelector("#app");
@@ -156,6 +180,8 @@ const state = {
   table: null,
   messages: [],
   setupDecoration: null,
+  setupCompletion: null,
+  setupBgSlot: "outer",
   canEdit: false,
   guestSubmissionComplete: false,
   guestViewingMessages: false,
@@ -292,6 +318,8 @@ function renderSetup() {
   };
 
   state.setupDecoration = cloneDecorationForSetup(table.decoration, Boolean(state.table));
+  state.setupCompletion = getInitialSetupCompletion(state.table?.decoration);
+  state.setupBgSlot = getNextIncompleteBgSlot();
   fillRitualDates(table.date);
   form.elements.owner_name.value = table.owner_name || "";
   syncGroupInputs(table.owner_name || "");
@@ -302,18 +330,23 @@ function renderSetup() {
   wireDecorTabs();
   wireWishInputs();
   showDecorTab("bg");
+  syncSetupCompletionUi();
 
   document.querySelector("[data-reset-decoration]").addEventListener("click", () => {
     state.setupDecoration = cloneDecorationForSetup(null, false);
+    state.setupCompletion = { bgOuter: false, bgInner: false };
+    state.setupBgSlot = "outer";
     renderDecorationPreview(state.setupDecoration);
     syncBgPaletteSelection();
     syncWishInputs();
+    syncSetupCompletionUi();
   });
 
   document.querySelector("[data-next-setup]").addEventListener("click", () => {
-    if (!isWishComplete(state.setupDecoration.wish)) {
-      showDecorTab("wish");
-      showToast("축원 네 글자를 모두 입력해주세요");
+    const incompleteSection = getFirstIncompleteSetupSection();
+    if (incompleteSection) {
+      showDecorTab(incompleteSection.name);
+      showToast(incompleteSection.message);
       return;
     }
     showSetupStep("blessing");
@@ -351,6 +384,68 @@ function isWishComplete(wish) {
   return chars.length === 4 && !chars.some((ch) => !ch.trim());
 }
 
+function getSetupCompletion() {
+  const decoration = state.setupDecoration || DEFAULT_DECORATION;
+  return {
+    bg: Boolean(state.setupCompletion?.bgOuter && state.setupCompletion?.bgInner),
+    food: getPlates(decoration).some(Boolean),
+    wish: isWishComplete(decoration.wish),
+  };
+}
+
+function getInitialSetupCompletion(decoration) {
+  return {
+    bgOuter: Boolean(decoration?.bgOuter),
+    bgInner: Boolean(decoration?.bgInner || decoration?.bg),
+  };
+}
+
+function getNextIncompleteBgSlot() {
+  if (!state.setupCompletion?.bgOuter) return "outer";
+  if (!state.setupCompletion?.bgInner) return "inner";
+  return "outer";
+}
+
+function setBackgroundColor(slot, value) {
+  if (slot === "outer") {
+    state.setupDecoration.bgOuter = value;
+    state.setupCompletion.bgOuter = true;
+    return;
+  }
+
+  state.setupDecoration.bgInner = value;
+  state.setupDecoration.bg = value;
+  state.setupCompletion.bgInner = true;
+}
+
+function getFirstIncompleteSetupSection() {
+  const completion = getSetupCompletion();
+  if (!completion.bg) {
+    return { name: "bg", message: "테이블 컬러 두 가지를 골라주세요" };
+  }
+  if (!completion.food) {
+    return { name: "food", message: "차림에 음식을 하나 이상 올려주세요" };
+  }
+  if (!completion.wish) {
+    return { name: "wish", message: "축원 네 글자를 모두 입력해주세요" };
+  }
+  return null;
+}
+
+function syncSetupCompletionUi() {
+  const completion = getSetupCompletion();
+  const isComplete = completion.bg && completion.food && completion.wish;
+
+  document.querySelectorAll("[data-decor-tab]").forEach((tab) => {
+    tab.classList.toggle("is-complete", Boolean(completion[tab.dataset.decorTab]));
+  });
+
+  const nextButton = document.querySelector("[data-next-setup]");
+  if (!nextButton) return;
+  nextButton.classList.toggle("is-complete", isComplete);
+  nextButton.setAttribute("aria-disabled", String(!isComplete));
+}
+
 function showSetupStep(stepName) {
   document.querySelectorAll("[data-setup-step]").forEach((step) => {
     step.classList.toggle("is-active", step.dataset.setupStep === stepName);
@@ -366,10 +461,6 @@ function renderMain() {
   const showGuestMessages = !ownerMode && state.guestViewingMessages;
 
   document.querySelector("[data-main-title]").textContent = `${state.table.owner_name} 대박 기원`;
-  document.querySelector("[data-main-subtitle]").textContent =
-    ownerMode || showGuestMessages
-      ? `총 ${state.messages.length}개의 축원이 올라갔습니다`
-      : "친구를 응원하고 좋은 기운을 가져가세요";
   document.querySelector("[data-owner-only]").hidden = !ownerMode;
   document.querySelector("[data-guest-only]").hidden = ownerMode;
   document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
@@ -394,17 +485,31 @@ function renderAssetPalette() {
     const button = document.createElement("button");
     button.className = "asset-token";
     button.type = "button";
-    button.draggable = true;
+    button.draggable = false;
     button.dataset.assetValue = asset.value;
     button.setAttribute("aria-label", `${asset.label} 올리기`);
 
-    const icon = document.createElement("img");
-    icon.className = "asset-token-image";
-    icon.src = asset.image;
-    icon.alt = "";
-    icon.draggable = false;
-
-    button.append(icon);
+    if (Array.isArray(asset.images)) {
+      const iconGroup = document.createElement("span");
+      iconGroup.className = "asset-token-image-group";
+      iconGroup.setAttribute("aria-hidden", "true");
+      asset.images.forEach((src, index) => {
+        const icon = document.createElement("img");
+        icon.className = `asset-token-image asset-token-image-${index}`;
+        icon.src = src;
+        icon.alt = "";
+        icon.draggable = false;
+        iconGroup.append(icon);
+      });
+      button.append(iconGroup);
+    } else {
+      const icon = document.createElement("img");
+      icon.className = "asset-token-image";
+      icon.src = asset.image;
+      icon.alt = "";
+      icon.draggable = false;
+      button.append(icon);
+    }
     root.append(button);
   });
 }
@@ -421,9 +526,19 @@ function renderBgPalette() {
     button.dataset.bgValue = choice.value;
     button.setAttribute("aria-label", choice.label);
     button.addEventListener("click", () => {
-      state.setupDecoration.bg = choice.value;
+      const completedSlot = getCompletedBgSlot(choice.value);
+      if (completedSlot) {
+        state.setupBgSlot = completedSlot;
+        syncBgPaletteSelection();
+        return;
+      }
+
+      const slot = state.setupBgSlot || getNextIncompleteBgSlot();
+      setBackgroundColor(slot, choice.value);
+      state.setupBgSlot = slot === "outer" ? "inner" : "outer";
       renderDecorationPreview(state.setupDecoration);
       syncBgPaletteSelection();
+      syncSetupCompletionUi();
     });
     root.append(button);
   });
@@ -433,8 +548,28 @@ function renderBgPalette() {
 
 function syncBgPaletteSelection() {
   document.querySelectorAll("[data-bg-value]").forEach((button) => {
-    button.classList.toggle("is-selected", button.dataset.bgValue === state.setupDecoration.bg);
+    const marker = getBgMarker(button.dataset.bgValue);
+    if (marker) {
+      button.dataset.bgMarker = marker;
+    } else {
+      delete button.dataset.bgMarker;
+    }
+    button.classList.toggle("is-selected", Boolean(marker));
+    button.classList.toggle("is-active-bg-target", getCompletedBgSlot(button.dataset.bgValue) === state.setupBgSlot);
   });
+}
+
+function getCompletedBgSlot(value) {
+  if (state.setupCompletion?.bgOuter && value === state.setupDecoration?.bgOuter) return "outer";
+  if (state.setupCompletion?.bgInner && value === state.setupDecoration?.bgInner) return "inner";
+  return null;
+}
+
+function getBgMarker(value) {
+  const markers = [];
+  if (state.setupCompletion?.bgOuter && value === state.setupDecoration?.bgOuter) markers.push("1");
+  if (state.setupCompletion?.bgInner && value === state.setupDecoration?.bgInner) markers.push("2");
+  return markers.join(" ");
 }
 
 function wireDecorTabs() {
@@ -463,6 +598,7 @@ function wireWishInputs() {
     input.value = state.setupDecoration.wish;
     syncWishInputs();
     renderDecorationPreview(state.setupDecoration);
+    syncSetupCompletionUi();
   };
 
   input.addEventListener("input", (event) => {
@@ -515,13 +651,20 @@ function wireSetupDrag() {
     event.dataTransfer.setData("application/json", JSON.stringify({ value: token.dataset.assetValue }));
     event.dataTransfer.effectAllowed = "copy";
 
-    const image = token.querySelector(".asset-token-image");
-    if (image) event.dataTransfer.setDragImage(image, image.clientWidth / 2, image.clientHeight / 2);
+    const dragImage = makeNativeDragImage(token);
+    if (dragImage) {
+      event.dataTransfer.setDragImage(dragImage.element, dragImage.offsetX, dragImage.offsetY);
+      dragImage.cleanup?.();
+    }
   });
 
   palette.addEventListener("click", (event) => {
     const token = event.target.closest("[data-asset-value]");
     if (!token) return;
+    if (token.dataset.suppressClick === "true") {
+      delete token.dataset.suppressClick;
+      return;
+    }
     addToFirstEmptyPlate(token.dataset.assetValue);
   });
 
@@ -541,27 +684,61 @@ function addToFirstEmptyPlate(value) {
     showToast("접시가 모두 찼어요");
     return;
   }
-  state.setupDecoration.plates[emptyIndex] = { value };
+  const plate = makePlateFromAssetValue(value);
+  if (!plate) return;
+  state.setupDecoration.plates[emptyIndex] = plate;
   renderDecorationPreview(state.setupDecoration, { animateSlotIndex: emptyIndex });
+  syncSetupCompletionUi();
 }
 
 function startPalettePointerDrag(event) {
-  if (event.pointerType === "mouse") return;
   const token = event.target.closest("[data-asset-value]");
   if (!token) return;
-
+  if (event.button != null && event.button !== 0) return;
   event.preventDefault();
+  try {
+    token.setPointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer capture is a stability boost; dragging still works without it.
+  }
+  token.dataset.suppressClick = "true";
+
   const value = token.dataset.assetValue;
-  const ghost = makeDragGhost(token, event.clientX, event.clientY);
+  const startX = event.clientX;
+  const startY = event.clientY;
+  let ghost = null;
+  let hasDragged = false;
 
   function move(moveEvent) {
+    const dragDistance = Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY);
+    if (!ghost && dragDistance < 6) return;
+
+    if (!ghost) {
+      ghost = makeDragGhost(token, startX, startY);
+      hasDragged = true;
+    }
     moveGhost(ghost, moveEvent.clientX, moveEvent.clientY);
   }
 
   function end(endEvent) {
-    ghost.remove();
+    ghost?.remove();
+    try {
+      token.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // Ignore release errors from browsers that already cleared capture.
+    }
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
+    window.removeEventListener("pointercancel", end);
+
+    window.setTimeout(() => {
+      delete token.dataset.suppressClick;
+    }, 0);
+
+    if (!hasDragged) {
+      if (endEvent.type !== "pointercancel") addToFirstEmptyPlate(value);
+      return;
+    }
 
     const dropZone = document.querySelector("[data-drop-zone]");
     const rect = dropZone.getBoundingClientRect();
@@ -572,6 +749,7 @@ function startPalettePointerDrag(event) {
 
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end, { once: true });
+  window.addEventListener("pointercancel", end, { once: true });
 }
 
 function startPlacementPointerDrag(event) {
@@ -586,7 +764,7 @@ function startPlacementPointerDrag(event) {
   const dropZone = document.querySelector("[data-drop-zone]");
   const palette = document.querySelector("[data-asset-palette]");
   const decorationAsset = findDecorationAsset(asset.value);
-  const ghost = makePlateDragGhost(decorationAsset, event.clientX, event.clientY);
+  const ghost = makePlateDragGhost(decorationAsset, asset, event.clientX, event.clientY);
 
   function move(moveEvent) {
     moveGhost(ghost, moveEvent.clientX, moveEvent.clientY);
@@ -601,6 +779,7 @@ function startPlacementPointerDrag(event) {
     if (isPointInsideRect(endEvent.clientX, endEvent.clientY, paletteRect)) {
       state.setupDecoration.plates[sourceIndex] = null;
       renderDecorationPreview(state.setupDecoration);
+      syncSetupCompletionUi();
       return;
     }
 
@@ -617,6 +796,7 @@ function startPlacementPointerDrag(event) {
       state.setupDecoration.plates[sourceIndex] = swapped;
     }
     renderDecorationPreview(state.setupDecoration);
+    syncSetupCompletionUi();
   }
 
   window.addEventListener("pointermove", move);
@@ -624,8 +804,61 @@ function startPlacementPointerDrag(event) {
 }
 
 function makeDragGhost(source, x, y) {
+  const asset = findDecorationAsset(source.dataset.assetValue);
+  if (asset?.images?.length) return makeAssetGroupDragGhost(asset, x, y);
+
   const sourceImage = source.querySelector(".asset-token-image");
   return makeDragGhostFromImage(sourceImage, x, y);
+}
+
+function makeAssetGroupDragGhost(asset, x, y) {
+  const ghost = document.createElement("span");
+  ghost.className = "asset-token-ghost asset-token-ghost-group asset-token-candy-ghost";
+  ghost.setAttribute("aria-hidden", "true");
+
+  asset.images.forEach((src, index) => {
+    const image = document.createElement("img");
+    image.className = `asset-token-candy-ghost-image asset-token-candy-ghost-image-${index}`;
+    image.src = src;
+    image.alt = "";
+    image.draggable = false;
+    ghost.append(image);
+  });
+
+  document.body.append(ghost);
+  moveGhost(ghost, x, y);
+  return ghost;
+}
+
+function makeNativeDragImage(source) {
+  const sourceGroup = source.querySelector(".asset-token-image-group");
+  if (sourceGroup) {
+    const preview = makeDragGhostFromElement(sourceGroup, -9999, -9999);
+    preview.classList.add("native-asset-token-ghost");
+    return {
+      element: preview,
+      offsetX: preview.offsetWidth / 2,
+      offsetY: preview.offsetHeight / 2,
+      cleanup: () => requestAnimationFrame(() => preview.remove()),
+    };
+  }
+
+  const image = source.querySelector(".asset-token-image");
+  if (!image) return null;
+  return {
+    element: image,
+    offsetX: image.clientWidth / 2,
+    offsetY: image.clientHeight / 2,
+  };
+}
+
+function makeDragGhostFromElement(sourceElement, x, y) {
+  const ghost = document.createElement("span");
+  ghost.className = "asset-token-ghost asset-token-ghost-group";
+  ghost.append(sourceElement.cloneNode(true));
+  document.body.append(ghost);
+  moveGhost(ghost, x, y);
+  return ghost;
 }
 
 function makeDragGhostFromImage(sourceImage, x, y) {
@@ -638,10 +871,10 @@ function makeDragGhostFromImage(sourceImage, x, y) {
   return ghost;
 }
 
-function makePlateDragGhost(asset, x, y) {
+function makePlateDragGhost(asset, plate, x, y) {
   const ghost = document.createElement("span");
   ghost.className = "asset-token-ghost plate-content-ghost";
-  if (asset) ghost.append(makePlateContent(asset, { animated: false }));
+  if (asset) ghost.append(makePlateContent(asset, { plate, animated: false }));
   document.body.append(ghost);
   moveGhost(ghost, x, y);
   return ghost;
@@ -660,8 +893,11 @@ function addPlacementFromPoint(value, clientX, clientY) {
   const targetIndex = findNearestSlotIndex(dropZone, clientX, clientY);
   if (targetIndex == null) return;
 
-  state.setupDecoration.plates[targetIndex] = { value };
+  const plate = makePlateFromAssetValue(value);
+  if (!plate) return;
+  state.setupDecoration.plates[targetIndex] = plate;
   renderDecorationPreview(state.setupDecoration, { animateSlotIndex: targetIndex });
+  syncSetupCompletionUi();
 }
 
 function findNearestSlotIndex(dropZone, clientX, clientY) {
@@ -687,7 +923,8 @@ function renderDecorationPreview(decoration, { openMouth = false, animateSlotInd
     const layer = stage.querySelector("[data-decor-layer]");
     const interactive = stage.hasAttribute("data-drop-zone");
     layer.innerHTML = "";
-    stage.style.setProperty("--stage-bg", decoration.bg || DEFAULT_BG);
+    stage.style.setProperty("--stage-side-bg", decoration.bgOuter || DEFAULT_BG_OUTER);
+    stage.style.setProperty("--stage-bg", decoration.bgInner || decoration.bg || DEFAULT_BG_INNER);
 
     const pigBox = document.createElement("span");
     pigBox.className = "decor-item decor-pig-box";
@@ -734,7 +971,7 @@ function renderDecorationPreview(decoration, { openMouth = false, animateSlotInd
       const asset = plate ? findDecorationAsset(plate.value) : null;
       if (asset) {
         slot.classList.add("is-filled");
-        slot.append(makePlateContent(asset, { animated: interactive && index === animateSlotIndex }));
+        slot.append(makePlateContent(asset, { plate, animated: interactive && index === animateSlotIndex }));
         if (interactive) slot.title = "드래그해서 다른 접시로 옮기거나 밖으로 빼서 치울 수 있습니다";
       }
 
@@ -756,24 +993,35 @@ function appendPigMoneyDecorations(pig, count) {
   });
 }
 
-function makePlateContent(asset, { animated = false } = {}) {
-  if (!STACKED_PLATE_ASSET_VALUES.has(asset.value)) {
-    const image = makeDecorImage(asset.image);
+function makePlateContent(asset, { plate = null, animated = false } = {}) {
+  const stackCount = getPlateStackCount(asset.value);
+  if (stackCount <= 1) {
+    const image = makeDecorImage(getPlateStackImage(asset, plate, 0));
     image.classList.add(`plate-asset-${asset.value}`);
     return image;
   }
 
   const stack = document.createElement("span");
-  stack.className = "plate-stack";
+  stack.className = `plate-stack plate-stack-${asset.value} plate-stack-count-${stackCount}`;
   if (animated) stack.classList.add("is-stacking");
 
-  for (let index = 0; index < 5; index += 1) {
-    const image = makeDecorImage(asset.image);
+  for (let index = 0; index < stackCount; index += 1) {
+    const image = makeDecorImage(getPlateStackImage(asset, plate, index));
     image.classList.add("plate-stack-item", `plate-stack-item-${index}`);
     stack.append(image);
   }
 
   return stack;
+}
+
+function getPlateStackCount(value) {
+  return PLATE_STACK_COUNTS.get(value) || 1;
+}
+
+function getPlateStackImage(asset, plate, index) {
+  if (asset.value !== "candy") return asset.image;
+  const colors = normalizeCandyColors(plate?.candyColors, getPlateStackCount(asset.value));
+  return LOADING_CANDY_ASSETS[colors[index]] || LOADING_CANDY_ASSETS.red;
 }
 
 function makeDecorImage(src) {
@@ -790,6 +1038,16 @@ function findDecorationAsset(value) {
   return DECORATION_ASSETS.find((asset) => asset.value === normalizedValue);
 }
 
+function makePlateFromAssetValue(value) {
+  const normalizedValue = normalizeDecorationAssetValue(value);
+  if (!normalizedValue) return null;
+  const plate = { value: normalizedValue };
+  if (normalizedValue === "candy") {
+    plate.candyColors = makeCandyStackColors(getPlateStackCount(normalizedValue));
+  }
+  return plate;
+}
+
 function normalizeDecorationAssetValue(value) {
   if (!value) return null;
   const normalizedValue = DECORATION_ASSET_ALIASES[value] || value;
@@ -801,17 +1059,63 @@ function getPlates(decoration) {
   while (plates.length < PLATE_COUNT) plates.push(null);
   return plates.map((plate) => {
     const value = normalizeDecorationAssetValue(plate?.value);
-    return value ? { value } : null;
+    if (!value) return null;
+    const normalizedPlate = { value };
+    if (value === "candy") {
+      normalizedPlate.candyColors = normalizeCandyColors(plate?.candyColors, getPlateStackCount(value));
+    }
+    return normalizedPlate;
   });
+}
+
+function normalizeCandyColors(colors, count) {
+  if (Array.isArray(colors)) {
+    const normalizedColors = colors.filter((color) => color === "red" || color === "yellow").slice(0, count);
+    if (normalizedColors.length === count) return normalizedColors;
+  }
+  return makeCandyStackColors(count);
+}
+
+function makeCandyStackColors(count) {
+  if (count <= 1) return [Math.random() < 0.5 ? "red" : "yellow"];
+
+  const redCount = getRandomInteger(1, count - 1);
+  const colors = [
+    ...new Array(redCount).fill("red"),
+    ...new Array(count - redCount).fill("yellow"),
+  ];
+  return shuffle(colors);
+}
+
+function getRandomInteger(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function shuffle(items) {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
 }
 
 function cloneDecorationForSetup(decoration, hasSavedTable) {
   if (!hasSavedTable || !decoration) {
-    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "" };
+    return {
+      bg: DEFAULT_BG_INNER,
+      bgOuter: DEFAULT_BG_OUTER,
+      bgInner: DEFAULT_BG_INNER,
+      plates: new Array(PLATE_COUNT).fill(null),
+      wish: "",
+    };
   }
 
+  const bgInner = decoration.bgInner || decoration.bg || DEFAULT_BG_INNER;
   return {
-    bg: decoration.bg || DEFAULT_BG,
+    bg: bgInner,
+    bgOuter: decoration.bgOuter || DEFAULT_BG_OUTER,
+    bgInner,
     plates: getPlates(decoration),
     wish: decoration.wish || "",
   };
@@ -1264,13 +1568,26 @@ function normalizeMessage(message) {
 function parseDecoration(value) {
   try {
     const parsed = JSON.parse(value || "{}");
+    const bgInner = typeof parsed.bgInner === "string" && parsed.bgInner
+      ? parsed.bgInner
+      : typeof parsed.bg === "string" && parsed.bg
+        ? parsed.bg
+        : DEFAULT_BG_INNER;
     return {
-      bg: typeof parsed.bg === "string" && parsed.bg ? parsed.bg : DEFAULT_BG,
+      bg: bgInner,
+      bgOuter: typeof parsed.bgOuter === "string" && parsed.bgOuter ? parsed.bgOuter : DEFAULT_BG_OUTER,
+      bgInner,
       plates: getPlates(parsed),
       wish: typeof parsed.wish === "string" ? parsed.wish.slice(0, 4) : "",
     };
   } catch {
-    return { bg: DEFAULT_BG, plates: new Array(PLATE_COUNT).fill(null), wish: "" };
+    return {
+      bg: DEFAULT_BG_INNER,
+      bgOuter: DEFAULT_BG_OUTER,
+      bgInner: DEFAULT_BG_INNER,
+      plates: new Array(PLATE_COUNT).fill(null),
+      wish: "",
+    };
   }
 }
 

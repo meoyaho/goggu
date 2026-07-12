@@ -10,8 +10,23 @@
     <link rel="preload" href="assets/asset-pig-head-box.png" as="image">
     <link rel="preload" href="assets/meoya-logo.png" as="image">
     <link rel="preload" href="assets/asset-bowl.png" as="image">
+    <link rel="preload" href="assets/asset-apple.png" as="image">
+    <link rel="preload" href="assets/asset-pear.png" as="image">
+    <link rel="preload" href="assets/asset-persimmon.png" as="image">
+    <link rel="preload" href="assets/asset-orange.png" as="image">
     <link rel="preload" href="assets/asset-candy-red.png" as="image">
     <link rel="preload" href="assets/asset-candy-yellow.png" as="image">
+    <link rel="preload" href="assets/asset-grape.png" as="image">
+    <link rel="preload" href="assets/asset-pineapple.png" as="image">
+    <link rel="preload" href="assets/asset-watermelon.png" as="image">
+    <link rel="preload" href="assets/asset-snack.png" as="image">
+    <link rel="preload" href="assets/asset-mandu.png" as="image">
+    <link rel="preload" href="assets/asset-pizza.png" as="image">
+    <link rel="preload" href="assets/asset-chicken.png" as="image">
+    <link rel="preload" href="assets/asset-hamburger.png" as="image">
+    <link rel="preload" href="assets/asset-sushi.png" as="image">
+    <link rel="preload" href="assets/asset-tteok.png" as="image">
+    <link rel="preload" href="assets/asset-mara.png" as="image">
     <link rel="preload" href="assets/money-mouth-1.png" as="image">
     <link rel="preload" href="assets/money-mouth-2.png" as="image">
     <link rel="preload" href="assets/money-mouth-3.png" as="image">
@@ -53,7 +68,6 @@
         <div class="setup-step is-active" data-setup-step="decorate">
           <header class="setup-header">
             <h1>나만의 고사상 꾸미기</h1>
-            <p>고사상을 꾸미고 대박을 기원하세요</p>
           </header>
 
           <div class="setup-content setup-decor-content">
@@ -89,15 +103,24 @@
           </div>
 
           <footer class="screen-footer setup-decor-actions">
-            <button class="secondary-action" type="button" data-reset-decoration>초기화</button>
-            <button class="primary-action setup-next" type="button" data-next-setup>다음</button>
+            <button class="reset-decor-button" type="button" data-reset-decoration aria-label="초기화">
+              <svg class="reset-decor-icon" viewBox="-4 -6 56 58" aria-hidden="true" focusable="false">
+                <path d="M17 18H7V8"></path>
+                <path d="M8 18a18 18 0 1 1 5 13"></path>
+              </svg>
+            </button>
+            <button class="setup-complete-button setup-next" type="button" data-next-setup aria-disabled="true">
+              <span>꾸미기 완료</span>
+              <svg class="setup-complete-arrow" viewBox="0 0 18 30" aria-hidden="true" focusable="false">
+                <path d="M3 3l12 12L3 27"></path>
+              </svg>
+            </button>
           </footer>
         </div>
 
         <form class="setup-form setup-step" data-setup-step="blessing" data-setup-form>
           <header class="setup-header">
             <h1>나만의 고사상 꾸미기</h1>
-            <p>고사상을 꾸미고 대박을 기원하세요</p>
           </header>
 
           <div class="setup-content setup-blessing-content">
@@ -137,7 +160,6 @@
       <section class="screen main-screen">
         <header class="setup-header main-header">
           <h1 data-main-title></h1>
-          <p data-main-subtitle></p>
         </header>
 
         <div class="setup-content main-content">
