@@ -1053,10 +1053,11 @@ function startPlacementPointerDrag(event) {
     window.removeEventListener("pointerup", end);
 
     const paletteRect = palette.getBoundingClientRect();
-    if (isPointInsideRect(endEvent.clientX, endEvent.clientY, paletteRect)) {
-      state.setupDecoration.plates[sourceIndex] = null;
-      renderDecorationPreview(state.setupDecoration);
-      syncSetupCompletionUi();
+    if (
+      isPointInsideRect(endEvent.clientX, endEvent.clientY, paletteRect) ||
+      isDesktopOutsideAppArea(endEvent.clientX, endEvent.clientY)
+    ) {
+      removePlatePlacement(sourceIndex);
       return;
     }
 
@@ -1078,6 +1079,12 @@ function startPlacementPointerDrag(event) {
 
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end, { once: true });
+}
+
+function removePlatePlacement(index) {
+  state.setupDecoration.plates[index] = null;
+  renderDecorationPreview(state.setupDecoration);
+  syncSetupCompletionUi();
 }
 
 function makeDragGhost(source, x, y) {
@@ -1413,6 +1420,15 @@ function syncGroupInputs(initialValue = "") {
 
 function isPointInsideRect(x, y, rect) {
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function isDesktopOutsideAppArea(x, y) {
+  if (!window.matchMedia("(min-width: 680px)").matches) return false;
+
+  const appShell = document.querySelector(".app-shell");
+  if (!appShell) return false;
+
+  return !isPointInsideRect(x, y, appShell.getBoundingClientRect());
 }
 
 function fillRitualDates(dateValue) {

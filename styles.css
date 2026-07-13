@@ -85,9 +85,7 @@ body {
   color: var(--ink);
   font-family: var(--app-font-family);
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 18% 8%, rgba(184, 135, 69, 0.22), transparent 26rem),
-    linear-gradient(180deg, #fffdf5 0%, #f4ead7 55%, #e7cfaa 100%);
+  background: #000;
 }
 
 body.is-loading-view {
@@ -2387,6 +2385,33 @@ button {
 
   .setup-speech-bubble {
     font-size: clamp(12px, 1.5625dvh, 30px);
+  }
+
+  .group-name-card.ritual-scroll {
+    --ritual-scroll-font-size: clamp(13px, 2.05dvh, 22px);
+  }
+
+  .message-feed-count,
+  .message-item p {
+    font-size: clamp(16px, 2.05dvh, 22px);
+  }
+
+  .message-item,
+  .message-empty {
+    min-height: calc(var(--header-side-border-width) * 3 + clamp(16px, 2.05dvh, 22px) * 2.5);
+  }
+
+  .message-item-footer {
+    font-size: clamp(14px, 1.82dvh, 20px);
+  }
+
+  .guest-message-panel label,
+  .guest-message-flight-card label,
+  .guest-message-panel input,
+  .guest-message-panel textarea,
+  .guest-message-flight-card input,
+  .guest-message-flight-card textarea {
+    font-size: clamp(15px, 1.95dvh, 21px);
   }
 
 }
