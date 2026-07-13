@@ -2269,6 +2269,7 @@ button {
   width: 100%;
   max-width: min(720px, calc(100vw - var(--header-side-border-width) * 2));
   display: grid;
+  justify-items: center;
   gap: var(--header-side-border-width);
   padding: 0;
   color: #000;
@@ -2276,6 +2277,10 @@ button {
   background: transparent;
   border: 0;
   border-radius: 0;
+}
+
+.empty-visual {
+  width: min(100%, 320px);
 }
 
 .empty-state strong {

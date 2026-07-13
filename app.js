@@ -203,7 +203,7 @@ init();
 
 async function init() {
   if (!tableId) {
-    renderNfcStart();
+    renderEmpty();
     return;
   }
 
@@ -295,26 +295,18 @@ function startLoadingCandyStack() {
   spawn();
 }
 
-function renderNfcStart() {
-  setLoadingView(true);
-  $app.innerHTML = `
-    <section class="screen empty-screen nfc-screen">
-      <div class="empty-state">
-        <strong>아직 차려지지 않은 상입니다</strong>
-        <span>이 페이지는 지정된 제주(祭主) 링크로만 시작합니다.</span>
-      </div>
-      <p class="loading-copyright">Copyright. © meoya</p>
-    </section>
-  `;
-}
-
 function renderEmpty() {
   setLoadingView(true);
   $app.innerHTML = `
     <section class="screen empty-screen">
       <div class="empty-state">
-        <strong>아직 차려지지 않은 상입니다</strong>
-        <span>제주(祭主)가 먼저 상을 차리면 응원을 남길 수 있습니다.</span>
+        <div class="loading-layout empty-visual">
+          <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya">
+          <div class="loading-offering" aria-hidden="true">
+            <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
+          </div>
+          <strong>아직 차려지지 않은 상입니다</strong>
+        </div>
       </div>
       <p class="loading-copyright">Copyright. © meoya</p>
     </section>
