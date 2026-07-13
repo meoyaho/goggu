@@ -872,6 +872,10 @@ button {
   color: #e43b22;
 }
 
+.owner-access-copy .owner-access-footnote {
+  font-size: clamp(12px, 2.7778vw, 30px);
+}
+
 .main-screen.is-owner-access-notice .owner-access-panel,
 .main-screen.is-owner-access-notice .action-bar {
   background: #000;
@@ -2220,7 +2224,8 @@ button {
     max-width: var(--content-width);
   }
 
-  .setup-speech-bubble {
+  .setup-speech-bubble,
+  .owner-access-copy .owner-access-footnote {
     font-size: clamp(12px, 1.5625dvh, 30px);
   }
 
