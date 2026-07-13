@@ -186,6 +186,7 @@ button {
 }
 
 .main-screen {
+  position: relative;
   height: var(--screen-height);
   min-height: 0;
   display: grid;
@@ -247,6 +248,7 @@ button {
 }
 
 .setup-step {
+  position: relative;
   width: var(--content-width);
   min-width: 0;
   display: none;
@@ -419,14 +421,56 @@ button {
   display: none;
   min-height: 0;
   overflow: auto;
+  scrollbar-width: none;
   container-type: size;
   border-radius: 0;
   background: var(--control-bg);
   border: 0;
 }
 
+.asset-decor-panel::-webkit-scrollbar {
+  display: none;
+}
+
 .asset-decor-panel.is-active {
   display: grid;
+}
+
+.decor-scrollbar,
+.screen-scrollbar {
+  position: absolute;
+  top: var(--scrollbar-top, var(--decor-scrollbar-top, 0));
+  right: 0;
+  height: var(--scrollbar-height, var(--decor-scrollbar-height, 100%));
+  z-index: 30;
+  display: none;
+  width: var(--header-side-border-width);
+  min-width: 8px;
+  border-right: var(--ui-line-width) solid #000;
+  border-left: var(--ui-line-width) solid #000;
+  pointer-events: none;
+}
+
+.decor-scrollbar.is-visible,
+.screen-scrollbar.is-visible {
+  display: block;
+}
+
+.decor-scrollbar-thumb,
+.screen-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--scrollbar-thumb-height, var(--decor-scrollbar-thumb-height, 42px));
+  background: #000;
+  transform: translateY(var(--scrollbar-thumb-top, var(--decor-scrollbar-thumb-top, 0)));
+}
+
+.setup-step.has-visible-scrollbar .asset-decor-panel,
+.setup-step.has-visible-scrollbar .setup-ritual-panel,
+.main-screen.has-visible-scrollbar .message-feed-panel {
+  padding-right: calc(var(--header-side-border-width) * 2);
 }
 
 .wish-decor-panel.is-active {
@@ -649,6 +693,7 @@ button {
 
 .group-name-card.ritual-scroll {
   --ritual-scroll-font-size: clamp(13px, 3.1481vw, 34px);
+  grid-template-rows: minmax(0, 1fr);
   align-content: stretch;
   place-items: stretch;
   padding: calc(var(--header-side-border-width) * 2.6);
@@ -660,14 +705,19 @@ button {
 .group-name-scroll-body {
   position: relative;
   z-index: 1;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   display: grid;
   gap: 12px;
   align-content: start;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0;
   scrollbar-width: none;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .group-name-scroll-body::-webkit-scrollbar {

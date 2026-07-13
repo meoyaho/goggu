@@ -189,6 +189,13 @@ const state = {
   guestSubmissionComplete: false,
   guestViewingMessages: false,
 };
+let decorScrollbarSource = null;
+let decorScrollbarResizeObserver = null;
+let decorScrollbarResizeListenerAttached = false;
+let activeScreenScrollbarConfigs = [];
+let screenScrollbarResizeObserver = null;
+let screenScrollbarResizeListenerAttached = false;
+const screenScrollbarSources = new Map();
 
 init();
 
@@ -335,6 +342,17 @@ function renderSetup() {
   renderDecorationPreview(state.setupDecoration);
   wireSetupDrag();
   wireDecorTabs();
+  wireDecorScrollbar();
+  wireScreenScrollbars([
+    {
+      key: "setup-name",
+      rootSelector: "[data-setup-step='blessing']",
+      startSelector: ".setup-ritual-panel",
+      sourceSelector: ".group-name-scroll-body",
+      scrollbarSelector: "[data-name-scrollbar]",
+      thumbSelector: "[data-name-scrollbar-thumb]",
+    },
+  ]);
   wireWishInputs();
   showDecorTab("bg");
   syncSetupCompletionUi();
@@ -479,6 +497,8 @@ function showSetupStep(stepName) {
   document.querySelectorAll("[data-setup-step]").forEach((step) => {
     step.classList.toggle("is-active", step.dataset.setupStep === stepName);
   });
+  syncDecorScrollbarSource();
+  syncActiveScreenScrollbars();
 }
 
 function renderMain() {
@@ -501,6 +521,16 @@ function renderMain() {
   });
   renderMessageFeed();
   applyGuestMessageTheme();
+  wireScreenScrollbars([
+    {
+      key: "message-feed",
+      rootSelector: ".main-screen",
+      startSelector: ".message-feed-panel",
+      sourceSelector: ".message-feed",
+      scrollbarSelector: "[data-message-feed-scrollbar]",
+      thumbSelector: "[data-message-feed-scrollbar-thumb]",
+    },
+  ]);
 
   document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
   document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
@@ -642,6 +672,202 @@ function showDecorTab(name) {
     prompt.classList.toggle("is-food-prompt", name === "food");
     prompt.classList.toggle("is-wish-prompt", name === "wish");
   }
+
+  syncDecorScrollbarSource();
+}
+
+function wireDecorScrollbar() {
+  decorScrollbarResizeObserver?.disconnect();
+  decorScrollbarResizeObserver = null;
+
+  if (typeof ResizeObserver !== "undefined") {
+    decorScrollbarResizeObserver = new ResizeObserver(syncDecorScrollbarSource);
+    [
+      document.querySelector("[data-setup-step='decorate']"),
+      document.querySelector(".asset-decor-tabs"),
+      document.querySelector(".setup-decor-actions"),
+      ...document.querySelectorAll("[data-decor-panel]"),
+    ].filter(Boolean).forEach((element) => decorScrollbarResizeObserver.observe(element));
+  }
+
+  if (!decorScrollbarResizeListenerAttached) {
+    window.addEventListener("resize", syncDecorScrollbarSource);
+    decorScrollbarResizeListenerAttached = true;
+  }
+}
+
+function syncDecorScrollbarSource() {
+  const activePanel = document.querySelector("[data-decor-panel].is-active");
+  const nextSource = activePanel ? findScrollableDecorElement(activePanel) : null;
+
+  if (decorScrollbarSource && decorScrollbarSource !== nextSource) {
+    decorScrollbarSource.removeEventListener("scroll", updateDecorScrollbar);
+  }
+
+  decorScrollbarSource = nextSource;
+  if (decorScrollbarSource) {
+    decorScrollbarSource.addEventListener("scroll", updateDecorScrollbar, { passive: true });
+  }
+
+  requestAnimationFrame(updateDecorScrollbar);
+}
+
+function findScrollableDecorElement(panel) {
+  const candidates = [panel, ...panel.querySelectorAll("*")];
+  return candidates.find((element) => {
+    const style = window.getComputedStyle(element);
+    if (!["auto", "scroll"].includes(style.overflowY)) return false;
+    return element.scrollHeight > element.clientHeight + 1;
+  }) || null;
+}
+
+function updateDecorScrollbar() {
+  const scrollbar = document.querySelector("[data-decor-scrollbar]");
+  const thumb = document.querySelector("[data-decor-scrollbar-thumb]");
+  const step = document.querySelector("[data-setup-step='decorate']");
+  const tabs = document.querySelector(".asset-decor-tabs");
+  const source = decorScrollbarSource;
+  if (!scrollbar || !thumb || !step || !tabs || !source) {
+    scrollbar?.classList.remove("is-visible");
+    step?.classList.remove("has-visible-scrollbar");
+    return;
+  }
+
+  const scrollableHeight = source.scrollHeight - source.clientHeight;
+  if (scrollableHeight <= 1) {
+    scrollbar.classList.remove("is-visible");
+    step.classList.remove("has-visible-scrollbar");
+    return;
+  }
+
+  const stepRect = step.getBoundingClientRect();
+  const tabsRect = tabs.getBoundingClientRect();
+  const footerRect = step.querySelector(".screen-footer")?.getBoundingClientRect();
+  const trackTop = Math.max(0, tabsRect.bottom - stepRect.top);
+  const trackBottom = footerRect ? footerRect.top : stepRect.bottom;
+  const trackHeight = Math.max(0, trackBottom - tabsRect.bottom);
+  if (trackHeight <= 1) {
+    scrollbar.classList.remove("is-visible");
+    step.classList.remove("has-visible-scrollbar");
+    return;
+  }
+  const thumbHeight = Math.min(trackHeight, Math.max(42, trackHeight * (source.clientHeight / source.scrollHeight)));
+  const thumbTravel = Math.max(0, trackHeight - thumbHeight);
+  const thumbTop = thumbTravel * (source.scrollTop / scrollableHeight);
+
+  scrollbar.style.setProperty("--decor-scrollbar-top", `${trackTop}px`);
+  scrollbar.style.setProperty("--decor-scrollbar-height", `${trackHeight}px`);
+  thumb.style.setProperty("--decor-scrollbar-thumb-height", `${thumbHeight}px`);
+  thumb.style.setProperty("--decor-scrollbar-thumb-top", `${thumbTop}px`);
+  scrollbar.classList.add("is-visible");
+  step.classList.add("has-visible-scrollbar");
+}
+
+function wireScreenScrollbars(configs) {
+  screenScrollbarSources.forEach(({ source, handler }) => {
+    source.removeEventListener("scroll", handler);
+  });
+  screenScrollbarSources.clear();
+  activeScreenScrollbarConfigs = configs;
+
+  screenScrollbarResizeObserver?.disconnect();
+  screenScrollbarResizeObserver = null;
+
+  if (typeof ResizeObserver !== "undefined") {
+    screenScrollbarResizeObserver = new ResizeObserver(syncActiveScreenScrollbars);
+    configs.forEach((config) => {
+      [
+        document.querySelector(config.rootSelector),
+        document.querySelector(config.startSelector),
+        document.querySelector(config.sourceSelector),
+      ].filter(Boolean).forEach((element) => screenScrollbarResizeObserver.observe(element));
+    });
+  }
+
+  if (!screenScrollbarResizeListenerAttached) {
+    window.addEventListener("resize", syncActiveScreenScrollbars);
+    screenScrollbarResizeListenerAttached = true;
+  }
+
+  syncActiveScreenScrollbars();
+}
+
+function syncActiveScreenScrollbars() {
+  activeScreenScrollbarConfigs.forEach(syncScreenScrollbarSource);
+}
+
+function syncScreenScrollbarSource(config) {
+  const scrollbar = document.querySelector(config.scrollbarSelector);
+  const root = document.querySelector(config.rootSelector);
+  const source = document.querySelector(config.sourceSelector);
+  const nextSource = source && isVisibleScrollableElement(source) ? source : null;
+  const previous = screenScrollbarSources.get(config.key);
+
+  if (previous && previous.source !== nextSource) {
+    previous.source.removeEventListener("scroll", previous.handler);
+    screenScrollbarSources.delete(config.key);
+  }
+
+  if (nextSource && !screenScrollbarSources.has(config.key)) {
+    const handler = () => updateScreenScrollbar(config);
+    nextSource.addEventListener("scroll", handler, { passive: true });
+    screenScrollbarSources.set(config.key, { source: nextSource, handler });
+  }
+
+  if (!nextSource) {
+    scrollbar?.classList.remove("is-visible");
+    root?.classList.remove("has-visible-scrollbar");
+  }
+  requestAnimationFrame(() => updateScreenScrollbar(config));
+}
+
+function isVisibleScrollableElement(element) {
+  if (!element || !element.getClientRects().length) return false;
+  return element.scrollHeight > element.clientHeight + 1;
+}
+
+function updateScreenScrollbar(config) {
+  const scrollbar = document.querySelector(config.scrollbarSelector);
+  const thumb = document.querySelector(config.thumbSelector);
+  const root = document.querySelector(config.rootSelector);
+  const start = document.querySelector(config.startSelector);
+  const entry = screenScrollbarSources.get(config.key);
+  const source = entry?.source;
+
+  if (!scrollbar || !thumb || !root || !start || !source || !isVisibleScrollableElement(source)) {
+    scrollbar?.classList.remove("is-visible");
+    root?.classList.remove("has-visible-scrollbar");
+    return;
+  }
+
+  const scrollableHeight = source.scrollHeight - source.clientHeight;
+  if (scrollableHeight <= 1) {
+    scrollbar.classList.remove("is-visible");
+    root.classList.remove("has-visible-scrollbar");
+    return;
+  }
+
+  const rootRect = root.getBoundingClientRect();
+  const startRect = start.getBoundingClientRect();
+  const footerRect = root.querySelector(".screen-footer")?.getBoundingClientRect();
+  const trackTop = Math.max(0, startRect.top - rootRect.top);
+  const trackBottom = footerRect ? footerRect.top : rootRect.bottom;
+  const trackHeight = Math.max(0, trackBottom - startRect.top);
+  if (trackHeight <= 1) {
+    scrollbar.classList.remove("is-visible");
+    root.classList.remove("has-visible-scrollbar");
+    return;
+  }
+  const thumbHeight = Math.min(trackHeight, Math.max(42, trackHeight * (source.clientHeight / source.scrollHeight)));
+  const thumbTravel = Math.max(0, trackHeight - thumbHeight);
+  const thumbTop = thumbTravel * (source.scrollTop / scrollableHeight);
+
+  scrollbar.style.setProperty("--scrollbar-top", `${trackTop}px`);
+  scrollbar.style.setProperty("--scrollbar-height", `${trackHeight}px`);
+  thumb.style.setProperty("--scrollbar-thumb-height", `${thumbHeight}px`);
+  thumb.style.setProperty("--scrollbar-thumb-top", `${thumbTop}px`);
+  scrollbar.classList.add("is-visible");
+  root.classList.add("has-visible-scrollbar");
 }
 
 function wireWishInputs() {
@@ -1244,12 +1470,14 @@ function renderMessageFeed() {
 
   list.innerHTML = "";
   if (!count) {
+    syncActiveScreenScrollbars();
     return;
   }
 
   [...state.messages].reverse().forEach((message) => {
     list.append(makeMessageItem(message));
   });
+  syncActiveScreenScrollbars();
 }
 
 async function submitMessageForm(event) {
