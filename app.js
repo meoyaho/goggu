@@ -42,7 +42,6 @@ const FIXED_OWNER_TABLE_IDS = new Set([
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
 const DEFAULT_BG_OUTER = "#aaff4d";
 const DEFAULT_BG_INNER = "#d86bf1";
-const DEFAULT_BG = DEFAULT_BG_INNER;
 const PLATE_COUNT = 6;
 const DEFAULT_DECORATION = {
   bg: DEFAULT_BG_INNER,
@@ -1616,46 +1615,6 @@ function playGuestMessageFold(form) {
   return flightCard;
 }
 
-function openMessageModal() {
-  document.body.append(clone("message-modal-template"));
-  const modal = document.querySelector("[data-message-modal]");
-  const form = modal.querySelector("[data-message-form]");
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const sent = await sendMessageFromForm(form);
-    if (!sent) return;
-    modal.close();
-    modal.remove();
-  });
-
-  modal.querySelector("[data-close-message]").addEventListener("click", () => modal.close());
-  modal.addEventListener("close", () => modal.remove(), { once: true });
-  modal.showModal();
-}
-
-async function sendMessageFromForm(form, options = {}) {
-  const formData = new FormData(form);
-  const userName = clean(formData.get("user_name"));
-  const message = clean(formData.get("message"));
-  if (!userName || !message) return false;
-
-  await api("addMessage", {
-    table_id: tableId,
-    user_name: userName,
-    message,
-    created_at: new Date().toISOString(),
-    theme: form.dataset.messageTheme || "",
-  });
-
-  await loadData();
-  if (options.renderAfter !== false) {
-    renderMain();
-    showToast("응원이 도착했습니다");
-  }
-  return true;
-}
-
 function configureGuestActionButton() {
   const ownerMode = isOwnerMode();
   const button = document.querySelector("[data-guest-only]");
@@ -1666,12 +1625,8 @@ function configureGuestActionButton() {
   if (state.guestViewingMessages) {
     button.type = "button";
     button.removeAttribute("form");
-    button.textContent = "축원 남기기";
-    button.onclick = () => {
-      state.guestViewingMessages = false;
-      state.guestSubmissionComplete = false;
-      renderMain();
-    };
+    button.textContent = "나만의 고사상 꾸미기";
+    button.onclick = startNewTableSetup;
     return;
   }
 
@@ -1692,6 +1647,15 @@ function configureGuestActionButton() {
   button.onclick = null;
 }
 
+function startNewTableSetup() {
+  const url = new URL(CONFIG.publicBaseUrl || location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("table", makeRandomTableId());
+  url.searchParams.set("owner", makeRandomOwnerToken());
+  location.assign(url.toString());
+}
+
 function applyGuestMessageTheme() {
   const form = document.querySelector("[data-guest-message-form]");
   if (!form || form.hidden) return;
@@ -1703,28 +1667,6 @@ function applyGuestMessageTheme() {
   form.style.setProperty("--guest-message-panel-start", theme.panelStart);
   form.style.setProperty("--guest-message-panel-end", theme.panelEnd);
   form.style.setProperty("--guest-message-panel-accent", theme.panelAccent);
-}
-
-function openMessageList() {
-  document.body.append(clone("message-list-modal-template"));
-  const modal = document.querySelector("[data-message-list-modal]");
-  const list = modal.querySelector("[data-message-list]");
-  list.innerHTML = "";
-
-  if (!state.messages.length) {
-    const empty = document.createElement("li");
-    empty.className = "message-empty";
-    empty.textContent = "아직 도착한 응원이 없습니다.";
-    list.append(empty);
-  } else {
-    [...state.messages].reverse().forEach((message) => {
-      list.append(makeMessageItem(message));
-    });
-  }
-
-  modal.querySelector("[data-close-message-list]").addEventListener("click", () => modal.close());
-  modal.addEventListener("close", () => modal.remove(), { once: true });
-  modal.showModal();
 }
 
 function makeMessageItem(message) {
@@ -1974,6 +1916,20 @@ function clean(value) {
 
 function isValidTableId(value) {
   return TABLE_ID_PATTERN.test(String(value || ""));
+}
+
+function makeRandomTableId() {
+  return `t-${makeRandomHex(8)}`;
+}
+
+function makeRandomOwnerToken() {
+  return makeRandomHex(12);
+}
+
+function makeRandomHex(byteLength) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function normalizeLocalTableId(value) {

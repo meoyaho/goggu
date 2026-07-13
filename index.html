@@ -230,35 +230,6 @@
         </div>
       </section>
     </template>
-
-    <template id="message-modal-template">
-      <dialog class="modal" data-message-modal>
-        <form class="modal-card message-card" data-message-form method="dialog">
-          <button class="icon-close" type="button" data-close-message aria-label="닫기">×</button>
-          <h2>응원 남기기</h2>
-          <label>
-            <span>이름</span>
-            <input name="user_name" maxlength="18" required>
-          </label>
-          <label>
-            <span>메시지</span>
-            <textarea name="message" rows="4" maxlength="120" required></textarea>
-          </label>
-          <button class="primary-action" type="submit">보내기</button>
-        </form>
-      </dialog>
-    </template>
-
-    <template id="message-list-modal-template">
-      <dialog class="modal" data-message-list-modal>
-        <div class="modal-card message-list-card">
-          <button class="icon-close" type="button" data-close-message-list aria-label="닫기">×</button>
-          <h2>도착한 응원</h2>
-          <ul class="message-list" data-message-list></ul>
-        </div>
-      </dialog>
-    </template>
-
     <script src="app.js" defer></script>
   </body>
 </html>

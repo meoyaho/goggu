@@ -246,11 +246,9 @@ button {
 }
 
 .primary-action:focus-visible,
-.secondary-action:focus-visible,
 .prev-setup-button:focus-visible,
 .reset-decor-button:focus-visible,
-.setup-complete-button:focus-visible,
-.icon-close:focus-visible {
+.setup-complete-button:focus-visible {
   outline: var(--ui-line-width) solid rgba(49, 93, 79, 0.45);
   outline-offset: 4px;
 }
@@ -325,22 +323,6 @@ button {
   gap: 0;
   justify-items: center;
   align-content: stretch;
-}
-
-.screen-content {
-  width: var(--content-width);
-  min-width: 0;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  display: grid;
-  gap: 4px;
-  justify-items: center;
-  scrollbar-width: none;
-}
-
-.screen-content::-webkit-scrollbar {
-  display: none;
 }
 
 .main-content {
@@ -1170,36 +1152,6 @@ button {
   height: 100%;
 }
 
-.ritual-confirm-scroll {
-  width: var(--content-width);
-  height: 100%;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.blessing-panel {
-  width: var(--content-width);
-  padding-top: 18px;
-}
-
-.hanging-scroll {
-  position: relative;
-  width: 100%;
-  padding: 20px;
-  background:
-    linear-gradient(90deg, rgba(112, 31, 26, 0.12), transparent 8%, transparent 92%, rgba(112, 31, 26, 0.12)),
-    linear-gradient(180deg, #fff6d8 0%, #fde7a5 100%);
-  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.2);
-  border-radius: var(--radius);
-}
-
-.empty-scroll {
-  display: grid;
-  gap: 12px;
-}
-
 .loading-layout {
   width: min(100%, 320px);
   display: grid;
@@ -1332,48 +1284,6 @@ button {
   font-weight: 500;
 }
 
-.main-blessing-scroll {
-  display: grid;
-  place-content: center;
-  gap: 7px;
-  text-align: center;
-}
-
-.main-blessing-scroll p {
-  margin: 0;
-  color: var(--red-dark);
-  font-size: clamp(1.2rem, 5.6vw, 1.85rem);
-  font-weight: 900;
-  line-height: 1.35;
-  word-break: keep-all;
-}
-
-.main-blessing-scroll .ritual-date {
-  font-size: 0.86rem;
-  line-height: 1.25;
-}
-
-.main-blessing-scroll strong {
-  color: var(--red-dark);
-}
-
-.main-blessing-scroll small {
-  color: var(--muted);
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-
-.table-id {
-  justify-self: center;
-  padding: 4px 9px;
-  border-radius: 999px;
-  color: #fffaf0;
-  background: var(--green);
-  font-size: 0.74rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-}
-
 .ritual-date,
 .sanghyang {
   text-align: center;
@@ -1406,21 +1316,8 @@ button {
   color: rgba(111, 31, 26, 0.48);
 }
 
-.stacked-field {
-  display: grid;
-  gap: 8px;
-}
-
-.stacked-field span {
-  color: var(--red-dark);
-  font-size: 0.92rem;
-  font-weight: 900;
-}
-
-.empty-scroll label,
 .guest-message-panel label,
-.guest-message-flight-card label,
-.message-card label {
+.guest-message-flight-card label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -1442,15 +1339,10 @@ button {
   text-align: center;
 }
 
-.empty-scroll input,
 .guest-message-panel input,
 .guest-message-panel textarea,
 .guest-message-flight-card input,
-.guest-message-flight-card textarea,
-.message-card input,
-.message-card textarea,
-.stacked-field input,
-.stacked-field textarea {
+.guest-message-flight-card textarea {
   width: 100%;
   border: var(--ui-line-width) solid rgba(36, 27, 24, 0.18);
   border-radius: var(--radius);
@@ -1483,10 +1375,8 @@ button {
   opacity: 1;
 }
 
-.message-card textarea,
 .guest-message-panel textarea,
-.guest-message-flight-card textarea,
-.stacked-field textarea {
+.guest-message-flight-card textarea {
   resize: vertical;
   min-height: 112px;
 }
@@ -1508,59 +1398,6 @@ button {
   height: 100%;
   min-height: 0;
   resize: none;
-}
-
-.decor-panel {
-  display: grid;
-  gap: 14px;
-  margin-top: 4px;
-}
-
-.decor-field {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.decor-field legend {
-  margin-bottom: 8px;
-  color: var(--red-dark);
-  font-size: 0.92rem;
-  font-weight: 900;
-}
-
-.decor-choices {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.decor-choice {
-  min-width: 0;
-  display: grid;
-  justify-items: center;
-  gap: 7px;
-  padding: 10px 6px;
-  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.18);
-  border-radius: var(--radius);
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.48);
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.decor-choice:has(input:checked) {
-  border-color: rgba(159, 47, 37, 0.7);
-  background: rgba(255, 229, 160, 0.76);
-}
-
-.decor-choice input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .decor-layer {
@@ -2120,8 +1957,7 @@ button {
   stroke-linejoin: miter;
 }
 
-.primary-action,
-.secondary-action {
+.primary-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2141,8 +1977,7 @@ button {
   box-shadow: 0 12px 22px rgba(125, 36, 29, 0.23);
 }
 
-.screen-footer .primary-action,
-.screen-footer .secondary-action {
+.screen-footer .primary-action {
   width: 100%;
   min-width: 0;
   min-height: var(--bar-height);
@@ -2157,7 +1992,7 @@ button {
 }
 
 .screen-footer .main-invite-button {
-  width: clamp(240px, 55.8333vw, 603px);
+  width: clamp(240px, calc(var(--content-width) * 0.558333), 603px);
   height: var(--decor-action-size);
   min-height: 0;
   border: var(--ui-line-width) solid #000;
@@ -2168,69 +2003,9 @@ button {
   line-height: 1;
 }
 
-.primary-action:disabled,
-.secondary-action:disabled {
+.primary-action:disabled {
   cursor: wait;
   opacity: 0.68;
-}
-
-.secondary-action {
-  color: var(--red-dark);
-  background: rgba(255, 248, 232, 0.78);
-  border-color: rgba(125, 36, 29, 0.2);
-}
-
-.modal {
-  width: min(calc(100% - 28px), 430px);
-  border: 0;
-  padding: 0;
-  background: transparent;
-}
-
-.modal::backdrop {
-  background: rgba(24, 15, 12, 0.5);
-  backdrop-filter: blur(5px);
-}
-
-.modal-card {
-  position: relative;
-  border-radius: var(--radius);
-  background: #fff9e9;
-  border: var(--ui-line-width) solid rgba(111, 31, 26, 0.2);
-}
-
-.message-card {
-  display: grid;
-  gap: 14px;
-  padding: 26px 20px 20px;
-}
-
-.message-card h2 {
-  margin: 0 36px 4px 0;
-  font-size: 1.3rem;
-}
-
-.message-list-card {
-  display: grid;
-  gap: 14px;
-  max-height: min(78vh, 620px);
-  padding: 26px 18px 18px;
-}
-
-.message-list-card h2 {
-  margin: 0 38px 0 0;
-  font-size: 1.3rem;
-}
-
-.message-list {
-  display: grid;
-  gap: 10px;
-  min-height: 0;
-  max-height: min(58vh, 470px);
-  margin: 0;
-  padding: 0;
-  overflow: auto;
-  list-style: none;
 }
 
 .message-item p {
@@ -2243,8 +2018,7 @@ button {
   word-break: keep-all;
 }
 
-.message-item,
-.message-empty {
+.message-item {
   position: relative;
   min-height: calc(var(--header-side-border-width) * 3 + clamp(18px, 3.3333vw, 36px) * 2.5);
   padding: var(--header-side-border-width);
@@ -2273,20 +2047,6 @@ button {
 
 .message-item-footer strong {
   font-weight: 500;
-}
-
-.icon-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 36px;
-  height: 36px;
-  border: var(--ui-line-width) solid rgba(36, 27, 24, 0.12);
-  border-radius: 50%;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.55);
-  font-size: 1.4rem;
-  line-height: 1;
 }
 
 .toast {
@@ -2396,8 +2156,7 @@ button {
     font-size: clamp(16px, 2.05dvh, 22px);
   }
 
-  .message-item,
-  .message-empty {
+  .message-item {
     min-height: calc(var(--header-side-border-width) * 3 + clamp(16px, 2.05dvh, 22px) * 2.5);
   }
 
@@ -2422,11 +2181,6 @@ button {
     --shell-padding-x: 0px;
   }
 
-  .hanging-scroll {
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-
   .setup-step,
   .setup-header,
   .table-stage,
@@ -2436,8 +2190,6 @@ button {
   .guest-message-panel,
   .setup-decor-actions,
   .setup-confirm-actions,
-  .ritual-confirm-scroll,
-  .blessing-panel,
   .action-bar,
   .empty-state {
     width: var(--content-width);
