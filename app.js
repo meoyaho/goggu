@@ -511,7 +511,9 @@ function renderMain() {
   const showOwnerMessages = ownerMode && state.ownerViewingMessages;
   const showGuestMessages = !ownerMode && state.guestViewingMessages;
   const showMessageFeed = showOwnerMessages || showGuestMessages;
+  const mainScreen = document.querySelector(".main-screen");
 
+  mainScreen?.classList.toggle("is-owner-access-notice", showOwnerAccess);
   document.querySelector("[data-main-title]").textContent = `${state.table.owner_name} 대박 기원`;
   document.querySelector("[data-owner-only]").hidden = !ownerMode;
   document.querySelector("[data-guest-only]").hidden = ownerMode;

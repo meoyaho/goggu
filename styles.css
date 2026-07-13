@@ -872,6 +872,23 @@ button {
   color: #e43b22;
 }
 
+.main-screen.is-owner-access-notice .owner-access-panel,
+.main-screen.is-owner-access-notice .action-bar {
+  background: #000;
+}
+
+.main-screen.is-owner-access-notice .owner-access-copy p {
+  color: #fff;
+}
+
+.main-screen.is-owner-access-notice .screen-scrollbar {
+  border-color: #fff;
+}
+
+.main-screen.is-owner-access-notice .screen-scrollbar-thumb {
+  background: #fff;
+}
+
 .guest-message-panel {
   position: relative;
   isolation: isolate;
@@ -2055,6 +2072,12 @@ button {
   background: #000;
   font-size: var(--decor-complete-font-size);
   line-height: 1;
+}
+
+.main-screen.is-owner-access-notice .screen-footer .main-invite-button {
+  color: #000;
+  background: #fff;
+  border-color: #fff;
 }
 
 .primary-action:disabled {
