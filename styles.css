@@ -464,7 +464,8 @@ button {
 
 .setup-step.has-visible-scrollbar .asset-decor-panel,
 .setup-step.has-visible-scrollbar .setup-ritual-panel,
-.main-screen.has-visible-scrollbar .message-feed-panel {
+.main-screen.has-visible-scrollbar .message-feed-panel,
+.main-screen.has-visible-scrollbar .owner-access-copy {
   padding-right: calc(var(--header-side-border-width) * 2);
 }
 
@@ -819,6 +820,58 @@ button {
   word-break: keep-all;
 }
 
+.owner-access-panel {
+  width: var(--content-width);
+  height: 100%;
+  min-height: 0;
+  display: block;
+  overflow: hidden;
+  background: var(--control-bg);
+  color: #000;
+  font-family: var(--app-font-family);
+  text-align: center;
+}
+
+.owner-access-scroll {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.owner-access-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.owner-access-copy {
+  width: 100%;
+  min-height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: stretch;
+  gap: var(--header-side-border-width);
+  padding: calc(var(--header-side-border-width) * 1.5);
+}
+
+.owner-access-copy p {
+  width: 100%;
+  margin: 0;
+  max-width: none;
+  font-size: var(--rolling-banner-font-size);
+  font-weight: 500;
+  line-height: 1.22;
+  word-break: keep-all;
+}
+
+.owner-access-copy .owner-access-alert {
+  color: #e43b22;
+}
+
+.owner-access-copy .owner-access-emphasis {
+  color: #e43b22;
+}
+
 .guest-message-panel {
   position: relative;
   isolation: isolate;
@@ -852,7 +905,8 @@ button {
 }
 
 .guest-message-panel[hidden],
-.message-feed-panel[hidden] {
+.message-feed-panel[hidden],
+.owner-access-panel[hidden] {
   display: none;
 }
 

@@ -12,6 +12,7 @@ const CONFIG = {
 
 const TABLES_KEY = "pig_head_tables";
 const MESSAGES_KEY = "pig_head_messages";
+const OWNER_NOTICE_ACK_KEY = "pig_head_owner_notice_ack";
 const TABLE_ID_PATTERN = /^t-[a-z0-9]{16}$/;
 const LEGACY_TABLE_ID_PATTERN = /^[a-z0-9]{16}$/;
 const OWNER_TOKEN_PATTERN = /^[a-z0-9]{24}$/;
@@ -189,6 +190,8 @@ const state = {
   canEdit: false,
   guestSubmissionComplete: false,
   guestViewingMessages: false,
+  ownerAccessLinkSaved: false,
+  ownerViewingMessages: false,
 };
 let decorScrollbarSource = null;
 let decorScrollbarResizeObserver = null;
@@ -230,6 +233,11 @@ async function loadData() {
   state.table = normalizeTable(result.table);
   state.messages = (result.messages || []).map(normalizeMessage);
   state.canEdit = result.can_edit == null ? hasOwnerAccessLink : Boolean(result.can_edit);
+
+  if (isOwnerMode() && isOwnerNoticeAcknowledged()) {
+    state.ownerAccessLinkSaved = true;
+    state.ownerViewingMessages = true;
+  }
 }
 
 function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
@@ -500,34 +508,52 @@ function renderMain() {
   $app.replaceChildren(clone("main-template"));
   fillRitualDates(state.table.date);
   const ownerMode = isOwnerMode();
+  const showOwnerAccess = ownerMode && !state.ownerViewingMessages;
+  const showOwnerMessages = ownerMode && state.ownerViewingMessages;
   const showGuestMessages = !ownerMode && state.guestViewingMessages;
+  const showMessageFeed = showOwnerMessages || showGuestMessages;
 
   document.querySelector("[data-main-title]").textContent = `${state.table.owner_name} 대박 기원`;
   document.querySelector("[data-owner-only]").hidden = !ownerMode;
   document.querySelector("[data-guest-only]").hidden = ownerMode;
-  document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !ownerMode && !showGuestMessages;
+  document.querySelector("[data-owner-access-panel]").hidden = !showOwnerAccess;
+  document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !showMessageFeed;
   document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
   syncGuestPrompt(ownerMode || showGuestMessages);
+  syncOwnerAccessCopy();
 
   renderDecorationPreview(state.table.decoration, {
     pigMoneyCount: ownerMode || showGuestMessages ? state.messages.length : 0,
   });
   renderMessageFeed();
   applyGuestMessageTheme();
-  wireScreenScrollbars([
-    {
-      key: "message-feed",
-      rootSelector: ".main-screen",
-      startSelector: ".message-feed-panel",
-      sourceSelector: ".message-feed",
-      scrollbarSelector: "[data-message-feed-scrollbar]",
-      thumbSelector: "[data-message-feed-scrollbar-thumb]",
-    },
-  ]);
+  wireMainScreenScrollbar(showOwnerAccess);
 
   document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
-  document.querySelector("[data-invite]").addEventListener("click", inviteGuests);
+  configureOwnerActionButton();
   configureGuestActionButton();
+}
+
+function wireMainScreenScrollbar(showOwnerAccess) {
+  wireScreenScrollbars([
+    showOwnerAccess
+      ? {
+          key: "owner-access",
+          rootSelector: ".main-screen",
+          startSelector: ".owner-access-panel",
+          sourceSelector: ".owner-access-scroll",
+          scrollbarSelector: "[data-message-feed-scrollbar]",
+          thumbSelector: "[data-message-feed-scrollbar-thumb]",
+        }
+      : {
+          key: "message-feed",
+          rootSelector: ".main-screen",
+          startSelector: ".message-feed-panel",
+          sourceSelector: ".message-feed",
+          scrollbarSelector: "[data-message-feed-scrollbar]",
+          thumbSelector: "[data-message-feed-scrollbar-thumb]",
+        },
+  ]);
 }
 
 function syncGuestPrompt(hidden) {
@@ -537,6 +563,15 @@ function syncGuestPrompt(hidden) {
   const groupName = clean(state.table?.owner_name || "모임명");
   prompt.textContent = `${groupName}${getObjectParticle(groupName)} 응원하고 좋은 기운 나눠가져요!`;
   prompt.hidden = hidden;
+}
+
+function syncOwnerAccessCopy() {
+  const keyringCopy = document.querySelector("[data-owner-access-keyring]");
+  const linkSaveCopy = document.querySelector("[data-owner-access-link-save]");
+  const fixedOwnerTable = isFixedOwnerTable();
+
+  if (keyringCopy) keyringCopy.hidden = !fixedOwnerTable;
+  if (linkSaveCopy) linkSaveCopy.hidden = fixedOwnerTable;
 }
 
 function getObjectParticle(value) {
@@ -1525,6 +1560,11 @@ async function submitMessageForm(event) {
       theme: form.dataset.messageTheme || "",
     });
     await loadData();
+    if (state.guestViewingMessages) {
+      renderMain();
+    } else {
+      renderMessageFeed();
+    }
   } catch (error) {
     window.clearTimeout(completionToastTimer);
     flightCard?.remove();
@@ -1647,6 +1687,65 @@ function configureGuestActionButton() {
   button.onclick = null;
 }
 
+function configureOwnerActionButton() {
+  const button = document.querySelector("[data-owner-only]");
+  if (!button || !isOwnerMode()) return;
+
+  button.disabled = false;
+
+  if (!isFixedOwnerTable() && !state.ownerAccessLinkSaved) {
+    button.textContent = "링크 저장하기";
+    button.onclick = saveOwnerAccessLink;
+    return;
+  }
+
+  button.textContent = "사람들 초대하기";
+  button.onclick = inviteGuests;
+}
+
+async function saveOwnerAccessLink() {
+  const link = makeTableUrl(true);
+  const shared = await shareOwnerAccessLink(link);
+
+  if (shared === null) {
+    showToast("제주(祭主) 링크 저장이 취소됐습니다");
+    return;
+  }
+
+  let saved = Boolean(shared);
+  let toastMessage = "제주(祭主) 링크를 저장했습니다";
+  if (!saved) {
+    saved = await copyText(link);
+    toastMessage = "제주(祭主) 링크를 복사했습니다";
+  }
+  if (!saved) {
+    window.prompt("제주(祭主) 링크를 저장해주세요", link);
+    saved = true;
+    toastMessage = "제주(祭主) 링크를 확인했습니다";
+  }
+
+  state.ownerAccessLinkSaved = true;
+  state.ownerViewingMessages = true;
+  acknowledgeOwnerNotice();
+  renderMain();
+  showToast(toastMessage);
+}
+
+async function shareOwnerAccessLink(link) {
+  if (!navigator.share) return false;
+
+  try {
+    await navigator.share({
+      title: "제주(祭主) 링크",
+      text: "이 고사상에 다시 접속하는 제주(祭主) 링크입니다.",
+      url: link,
+    });
+    return true;
+  } catch (error) {
+    return error?.name !== "AbortError" ? false : null;
+  }
+}
+
 function startNewTableSetup() {
   const url = new URL(CONFIG.publicBaseUrl || location.href);
   url.search = "";
@@ -1711,10 +1810,20 @@ async function inviteGuests() {
 
   if (copied) {
     showToast("초대 링크를 복사했습니다");
+    revealOwnerMessages();
     return;
   }
 
   window.prompt("초대 링크를 복사해주세요", text);
+  revealOwnerMessages();
+}
+
+function revealOwnerMessages() {
+  if (!isOwnerMode() || state.ownerViewingMessages) return;
+
+  state.ownerViewingMessages = true;
+  acknowledgeOwnerNotice();
+  renderMain();
 }
 
 async function copyText(text) {
@@ -1951,6 +2060,27 @@ function isValidOwnerToken(value) {
 
 function isOwnerMode() {
   return hasOwnerAccessLink && state.canEdit;
+}
+
+function isFixedOwnerTable() {
+  return Boolean(tableId && FIXED_OWNER_TABLE_IDS.has(tableId));
+}
+
+function isOwnerNoticeAcknowledged() {
+  if (!tableId) return false;
+  return Boolean(readJson(OWNER_NOTICE_ACK_KEY, {})[tableId]);
+}
+
+function acknowledgeOwnerNotice() {
+  if (!tableId) return;
+
+  const acknowledged = readJson(OWNER_NOTICE_ACK_KEY, {});
+  acknowledged[tableId] = true;
+  try {
+    localStorage.setItem(OWNER_NOTICE_ACK_KEY, JSON.stringify(acknowledged));
+  } catch {
+    // If storage is unavailable, the notice simply remains session-only.
+  }
 }
 
 function showToast(message) {
