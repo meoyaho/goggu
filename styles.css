@@ -595,7 +595,7 @@ button {
   bottom: 2.4%;
   z-index: 7;
   box-sizing: border-box;
-  width: clamp(230px, 67.4074vw, 728px);
+  width: clamp(230px, 67.4074%, 728px);
   aspect-ratio: var(--bubble-ratio);
   display: grid;
   place-items: center;
@@ -617,14 +617,14 @@ button {
 .setup-speech-bubble.is-bg-prompt {
   --bubble-image: url("assets/bubble1.png");
   --bubble-ratio: 698 / 131;
-  width: clamp(220px, 64.6296vw, 698px);
+  width: clamp(220px, 64.6296%, 698px);
 }
 
 .setup-speech-bubble.is-food-prompt {
   --bubble-image: url("assets/bubble3.png");
   --bubble-ratio: 918 / 145;
   --bubble-padding-x: 6%;
-  width: clamp(310px, 85vw, 918px);
+  width: clamp(310px, 85%, 918px);
 }
 
 .setup-speech-bubble.is-wish-prompt,
@@ -632,7 +632,7 @@ button {
 .setup-speech-bubble.main-guest-prompt {
   --bubble-image: url("assets/bubble2.png");
   --bubble-ratio: 728 / 145;
-  width: clamp(230px, 67.4074vw, 728px);
+  width: clamp(230px, 67.4074%, 728px);
 }
 
 .group-name-card {
@@ -2199,13 +2199,39 @@ button {
 }
 
 @media (min-width: 680px) {
+  :root {
+    --content-width: min(100vw, 56.25dvh);
+    --rolling-banner-font-size: clamp(14px, 2.34375dvh, 45px);
+    --header-font-size: clamp(30px, 5.46875dvh, 105px);
+    --header-side-border-width: clamp(8px, 1.5625dvh, 30px);
+    --header-inline-padding: clamp(6px, 0.7292dvh, 14px);
+    --decor-action-size: clamp(48px, 6.09375dvh, 117px);
+    --decor-complete-width: clamp(134px, 19.4271dvh, 373px);
+    --decor-complete-font-size: clamp(16px, 2.34375dvh, 45px);
+  }
+
+  .rolling-banner {
+    right: auto;
+    left: 50%;
+    width: var(--content-width);
+    transform: translateX(-50%);
+  }
+
   .app-shell {
+    width: var(--content-width);
+    max-width: var(--content-width);
+    margin: 0 auto;
     display: grid;
     place-items: center;
   }
 
   .screen {
-    width: 100%;
+    width: var(--content-width);
+    max-width: var(--content-width);
+  }
+
+  .setup-speech-bubble {
+    font-size: clamp(12px, 1.5625dvh, 30px);
   }
 
 }
