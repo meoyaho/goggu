@@ -3,7 +3,7 @@ const LOCAL_TEST_TABLE_ID = "t-ee50a5e17cf4680c";
 const LOCAL_TEST_OWNER_TOKEN = "751820bf0f42c78b62c9c5d2";
 const isLocalHost = LOCAL_HOSTS.includes(location.hostname);
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxz_tY861ksGpPkgVvv4A4UMh1OdaIgfGIYmbMZu1EKbiWWK1A9IptPZOYcgUatRKuosw/exec";
+  "https://script.google.com/macros/s/AKfycbxmHrWQVkvEmc5JVLYF67Q8I6u_6R78zmgtp4aWzPCQppe0EturTQgP9VwN3gOviJBSUA/exec";
 
 const CONFIG = {
   appsScriptUrl: APPS_SCRIPT_URL,
@@ -12,7 +12,6 @@ const CONFIG = {
 
 const TABLES_KEY = "pig_head_tables";
 const MESSAGES_KEY = "pig_head_messages";
-const OWNER_NOTICE_ACK_KEY = "pig_head_owner_notice_ack";
 const TABLE_ID_PATTERN = /^t-[a-z0-9]{16}$/;
 const LEGACY_TABLE_ID_PATTERN = /^[a-z0-9]{16}$/;
 const OWNER_TOKEN_PATTERN = /^[a-z0-9]{24}$/;
@@ -234,7 +233,7 @@ async function loadData() {
   state.messages = (result.messages || []).map(normalizeMessage);
   state.canEdit = result.can_edit == null ? hasOwnerAccessLink : Boolean(result.can_edit);
 
-  if (isOwnerMode() && isOwnerNoticeAcknowledged()) {
+  if (isOwnerMode() && result.owner_notice_acknowledged) {
     state.ownerAccessLinkSaved = true;
     state.ownerViewingMessages = true;
   }
@@ -1726,9 +1725,9 @@ async function saveOwnerAccessLink() {
 
   state.ownerAccessLinkSaved = true;
   state.ownerViewingMessages = true;
-  acknowledgeOwnerNotice();
+  const noticeSaved = await acknowledgeOwnerNotice();
   renderMain();
-  showToast(toastMessage);
+  showToast(noticeSaved ? toastMessage : "주의문 확인 상태를 저장하지 못했습니다");
 }
 
 async function shareOwnerAccessLink(link) {
@@ -1809,21 +1808,23 @@ async function inviteGuests() {
   const copied = await copyText(text);
 
   if (copied) {
-    showToast("초대 링크를 복사했습니다");
-    revealOwnerMessages();
+    const noticeSaved = await revealOwnerMessages();
+    showToast(noticeSaved ? "초대 링크를 복사했습니다" : "주의문 확인 상태를 저장하지 못했습니다");
     return;
   }
 
   window.prompt("초대 링크를 복사해주세요", text);
-  revealOwnerMessages();
+  const noticeSaved = await revealOwnerMessages();
+  if (!noticeSaved) showToast("주의문 확인 상태를 저장하지 못했습니다");
 }
 
-function revealOwnerMessages() {
-  if (!isOwnerMode() || state.ownerViewingMessages) return;
+async function revealOwnerMessages() {
+  if (!isOwnerMode() || state.ownerViewingMessages) return true;
 
   state.ownerViewingMessages = true;
-  acknowledgeOwnerNotice();
+  const noticeSaved = await acknowledgeOwnerNotice();
   renderMain();
+  return noticeSaved;
 }
 
 async function copyText(text) {
@@ -1893,10 +1894,12 @@ function localApi(action, payload) {
 
   if (action === "get") {
     const table = tables[payload.table_id] || null;
+    const canEdit = Boolean(table && payload.owner_token && (!table.owner_token || table.owner_token === payload.owner_token));
     return Promise.resolve({
       table,
       messages: messages.filter((message) => message.table_id === payload.table_id),
-      can_edit: Boolean(table && payload.owner_token && (!table.owner_token || table.owner_token === payload.owner_token)),
+      can_edit: canEdit,
+      owner_notice_acknowledged: Boolean(canEdit && table.owner_notice_acknowledged),
     });
   }
 
@@ -1913,9 +1916,22 @@ function localApi(action, payload) {
       owner_name: payload.owner_name,
       blessing: payload.blessing,
       decoration_json: payload.decoration_json,
+      owner_notice_acknowledged: existing?.owner_notice_acknowledged || false,
     };
     localStorage.setItem(TABLES_KEY, JSON.stringify(tables));
     return Promise.resolve({ ok: true });
+  }
+
+  if (action === "acknowledgeOwnerNotice") {
+    const table = tables[payload.table_id];
+    if (!table) return Promise.resolve({ ok: false, error: "table not found" });
+    if (table.owner_token && table.owner_token !== payload.owner_token) {
+      return Promise.resolve({ ok: false, error: "owner_token does not match" });
+    }
+
+    table.owner_notice_acknowledged = true;
+    localStorage.setItem(TABLES_KEY, JSON.stringify(tables));
+    return Promise.resolve({ ok: true, owner_notice_acknowledged: true });
   }
 
   if (action === "addMessage") {
@@ -2066,20 +2082,17 @@ function isFixedOwnerTable() {
   return Boolean(tableId && FIXED_OWNER_TABLE_IDS.has(tableId));
 }
 
-function isOwnerNoticeAcknowledged() {
-  if (!tableId) return false;
-  return Boolean(readJson(OWNER_NOTICE_ACK_KEY, {})[tableId]);
-}
+async function acknowledgeOwnerNotice() {
+  if (!tableId || !ownerToken) return false;
 
-function acknowledgeOwnerNotice() {
-  if (!tableId) return;
-
-  const acknowledged = readJson(OWNER_NOTICE_ACK_KEY, {});
-  acknowledged[tableId] = true;
   try {
-    localStorage.setItem(OWNER_NOTICE_ACK_KEY, JSON.stringify(acknowledged));
+    await api("acknowledgeOwnerNotice", {
+      table_id: tableId,
+      owner_token: ownerToken,
+    });
+    return true;
   } catch {
-    // If storage is unavailable, the notice simply remains session-only.
+    return false;
   }
 }
 

@@ -4,7 +4,7 @@ const SHEET_NAMES = {
 };
 
 const HEADERS = {
-  tables: ["table_id", "date", "owner_name", "blessing", "decoration_json", "owner_token"],
+  tables: ["table_id", "date", "owner_name", "blessing", "decoration_json", "owner_token", "owner_notice_acknowledged"],
   messages: ["table_id", "user_name", "message", "created_at", "theme"],
 };
 
@@ -22,6 +22,8 @@ function doGet(event) {
       result = createOrUpdateTable_(params);
     } else if (action === "addMessage") {
       result = addMessage_(params);
+    } else if (action === "acknowledgeOwnerNotice") {
+      result = acknowledgeOwnerNotice_(params);
     } else {
       result = { ok: false, error: "Unknown action" };
     }
@@ -42,13 +44,17 @@ function getData_(params) {
   const table = tables.find((row) => row.table_id === tableId) || null;
   const canEdit = Boolean(table && ownerToken && (!table.owner_token || table.owner_token === ownerToken));
   const publicTable = table ? Object.assign({}, table) : null;
-  if (publicTable) delete publicTable.owner_token;
+  if (publicTable) {
+    delete publicTable.owner_token;
+    delete publicTable.owner_notice_acknowledged;
+  }
 
   return {
     ok: true,
     table: publicTable,
     messages: messages.filter((row) => row.table_id === tableId),
     can_edit: canEdit,
+    owner_notice_acknowledged: Boolean(canEdit && isTruthy_(table.owner_notice_acknowledged)),
   };
 }
 
@@ -70,16 +76,40 @@ function createOrUpdateTable_(params) {
 
   if (existingRow >= 1) {
     const existingOwnerToken = clean_(values[existingRow][5]);
+    const ownerNoticeAcknowledged = clean_(values[existingRow][6]);
     if (existingOwnerToken && existingOwnerToken !== ownerToken) {
       throw new Error("owner_token does not match");
     }
 
-    sheet.getRange(existingRow + 1, 1, 1, 6).setValues([[tableId, date, ownerName, blessing, decorationJson, existingOwnerToken || ownerToken]]);
+    sheet
+      .getRange(existingRow + 1, 1, 1, 7)
+      .setValues([[tableId, date, ownerName, blessing, decorationJson, existingOwnerToken || ownerToken, ownerNoticeAcknowledged]]);
   } else {
-    sheet.appendRow([tableId, date, ownerName, blessing, decorationJson, ownerToken]);
+    sheet.appendRow([tableId, date, ownerName, blessing, decorationJson, ownerToken, ""]);
   }
 
   return { ok: true };
+}
+
+function acknowledgeOwnerNotice_(params) {
+  const tableId = clean_(params.table_id);
+  const ownerToken = clean_(params.owner_token);
+  if (!tableId || !ownerToken) {
+    throw new Error("table_id, owner_token are required");
+  }
+
+  const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAMES.tables);
+  const values = sheet.getDataRange().getValues();
+  const existingRow = values.findIndex((row, index) => index > 0 && row[0] === tableId);
+  if (existingRow < 1) throw new Error("table not found");
+
+  const existingOwnerToken = clean_(values[existingRow][5]);
+  if (existingOwnerToken && existingOwnerToken !== ownerToken) {
+    throw new Error("owner_token does not match");
+  }
+
+  sheet.getRange(existingRow + 1, 7).setValue("TRUE");
+  return { ok: true, owner_notice_acknowledged: true };
 }
 
 function addMessage_(params) {
@@ -192,6 +222,10 @@ function output_(data, callback) {
 
 function clean_(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function isTruthy_(value) {
+  return ["1", "true", "yes", "y"].includes(String(value || "").trim().toLowerCase());
 }
 
 function currentDate_() {

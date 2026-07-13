@@ -9,8 +9,8 @@
 ## Google Sheets 연동
 
 1. Google Sheet를 만들고 시트 두 개를 준비합니다.
-   - `tables`: `table_id`, `date`, `owner_name`, `blessing`, `decoration_json`, `owner_token`
-   - `messages`: `table_id`, `user_name`, `message`, `created_at`
+   - `tables`: `table_id`, `date`, `owner_name`, `blessing`, `decoration_json`, `owner_token`, `owner_notice_acknowledged`
+   - `messages`: `table_id`, `user_name`, `message`, `created_at`, `theme`
 2. Google Sheet에서 `확장 프로그램 > Apps Script`를 엽니다.
 3. [apps-script.gs](apps-script.gs)의 내용을 붙여넣고 저장합니다.
 4. `배포 > 새 배포 > 웹 앱`으로 배포합니다.
