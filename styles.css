@@ -487,10 +487,11 @@ button {
   height: 100%;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-auto-rows: minmax(46px, 1fr);
+  grid-auto-rows: minmax(58px, 1fr);
   align-content: start;
-  gap: 6px;
-  padding: 8px;
+  column-gap: clamp(10px, 2.6vw, 24px);
+  row-gap: clamp(12px, 3.2vw, 28px);
+  padding: clamp(12px, 3.2vw, 28px);
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
@@ -586,20 +587,24 @@ button {
 }
 
 .setup-speech-bubble {
+  --bubble-image: url("assets/bubble2.png");
+  --bubble-ratio: 728 / 145;
+  --bubble-padding-x: 8%;
   position: absolute;
   left: 50%;
   bottom: 2.4%;
   z-index: 7;
-  width: clamp(230px, 67.2222vw, 726px);
-  min-height: clamp(54px, 11.3vw, 122px);
+  box-sizing: border-box;
+  width: clamp(230px, 67.4074vw, 728px);
+  aspect-ratio: var(--bubble-ratio);
   display: grid;
   place-items: center;
-  padding: 0 8%;
-  border: 1px dashed #000;
-  border-radius: 50%;
+  padding: 0 var(--bubble-padding-x);
+  border: 0;
+  border-radius: 0;
   color: #000;
-  background: var(--control-bg);
-  font-size: clamp(14px, 3.3333vw, 36px);
+  background: transparent var(--bubble-image) center / 100% 100% no-repeat;
+  font-size: clamp(12px, 2.7778vw, 30px);
   font-weight: 500;
   line-height: 1.22;
   text-align: center;
@@ -610,15 +615,24 @@ button {
 }
 
 .setup-speech-bubble.is-bg-prompt {
-  width: clamp(220px, 64.537vw, 697px);
+  --bubble-image: url("assets/bubble1.png");
+  --bubble-ratio: 698 / 131;
+  width: clamp(220px, 64.6296vw, 698px);
 }
 
 .setup-speech-bubble.is-food-prompt {
-  width: clamp(310px, 84.815vw, 916px);
+  --bubble-image: url("assets/bubble3.png");
+  --bubble-ratio: 918 / 145;
+  --bubble-padding-x: 6%;
+  width: clamp(310px, 85vw, 918px);
 }
 
+.setup-speech-bubble.is-wish-prompt,
+.setup-speech-bubble.setup-name-prompt,
 .setup-speech-bubble.main-guest-prompt {
-  width: clamp(310px, 84.815vw, 916px);
+  --bubble-image: url("assets/bubble2.png");
+  --bubble-ratio: 728 / 145;
+  width: clamp(230px, 67.4074vw, 728px);
 }
 
 .group-name-card {
@@ -962,20 +976,20 @@ button {
 }
 
 .asset-token-image {
-  width: min(76%, 88px);
+  width: min(92%, 106.5px);
   aspect-ratio: 1;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 6px 7px rgba(43, 23, 19, 0.14));
+  filter: none;
 }
 
 .asset-token-image-group {
   display: block;
   position: relative;
-  width: min(84%, 90px);
+  width: min(101.6%, 108.9px);
   aspect-ratio: 1;
   pointer-events: none;
-  filter: drop-shadow(0 6px 7px rgba(43, 23, 19, 0.14));
+  filter: none;
 }
 
 .asset-token-image-group .asset-token-image {
@@ -983,6 +997,14 @@ button {
   width: 68%;
   height: 68%;
   filter: none;
+}
+
+.asset-token[data-asset-value="pineapple"] .asset-token-image,
+.asset-token[data-asset-value="watermelon"] .asset-token-image,
+.asset-token[data-asset-value="hamburger"] .asset-token-image,
+.asset-token[data-asset-value="tteok"] .asset-token-image,
+.asset-token[data-asset-value="mara"] .asset-token-image {
+  width: min(101.2%, 117.2px);
 }
 
 .asset-token-image-group .asset-token-image-0 {
@@ -1612,6 +1634,13 @@ button {
   margin: -52% -29.2% -6.4%;
 }
 
+.plate-slot .plate-asset-tteok,
+.plate-slot .plate-asset-mara {
+  width: 158.4%;
+  height: 158.4%;
+  margin: -36% -29.2% -22.4%;
+}
+
 .plate-stack {
   position: absolute;
   left: 50%;
@@ -1636,7 +1665,7 @@ button {
 
 .plate-stack-mandu,
 .plate-stack-sushi {
-  transform: translateX(-50%) scale(1.1);
+  transform: translateX(-50%) scale(1.21);
   transform-origin: bottom center;
 }
 
@@ -1669,6 +1698,39 @@ button {
   bottom: 42%;
   z-index: 3;
   transform: translateX(-50%);
+}
+
+.plate-stack-mandu .plate-stack-item,
+.plate-stack-sushi .plate-stack-item {
+  width: 42%;
+  height: 42%;
+}
+
+.plate-stack-mandu .plate-stack-item-0,
+.plate-stack-sushi .plate-stack-item-0 {
+  left: 14%;
+}
+
+.plate-stack-mandu .plate-stack-item-1,
+.plate-stack-sushi .plate-stack-item-1 {
+  right: 14%;
+}
+
+.plate-stack-mandu .plate-stack-item-2,
+.plate-stack-sushi .plate-stack-item-2 {
+  left: 22%;
+  bottom: 18%;
+}
+
+.plate-stack-mandu .plate-stack-item-3,
+.plate-stack-sushi .plate-stack-item-3 {
+  right: 22%;
+  bottom: 18%;
+}
+
+.plate-stack-mandu .plate-stack-item-4,
+.plate-stack-sushi .plate-stack-item-4 {
+  bottom: 36%;
 }
 
 .plate-stack-count-3 .plate-stack-item-0 {

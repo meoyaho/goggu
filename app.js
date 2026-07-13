@@ -53,7 +53,7 @@ const DEFAULT_DECORATION = {
 };
 const DECOR_TAB_PROMPTS = {
   bg: "테이블 컬러 두가지 골라주세요",
-  food: "원하는 음식을 골라보세요\n마음에 안들면 접시밖으로 치우면 삭제됩니다",
+  food: "원하는 음식을 골라보세요\n마음에 안들면 상밖으로 치우면 삭제됩니다",
   wish: "떡 위에 원하는 4글자를 작성해주세요.\n예: 성공기원",
 };
 
@@ -639,7 +639,8 @@ function showDecorTab(name) {
   if (prompt) {
     prompt.textContent = DECOR_TAB_PROMPTS[name] || "";
     prompt.classList.toggle("is-bg-prompt", name === "bg");
-    prompt.classList.toggle("is-food-prompt", name === "food" || name === "wish");
+    prompt.classList.toggle("is-food-prompt", name === "food");
+    prompt.classList.toggle("is-wish-prompt", name === "wish");
   }
 }
 
