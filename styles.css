@@ -826,7 +826,7 @@ button {
   gap: var(--header-side-border-width);
   padding: var(--header-side-border-width);
   border: var(--ui-line-width) solid #000;
-  background: var(--guest-message-card-bg, #f4ff2d);
+  background: var(--guest-message-card-bg, #f6ff48);
   color: #000;
   font-family: var(--app-font-family);
 }
@@ -845,6 +845,7 @@ button {
 }
 
 .guest-message-flight-card {
+  --guest-message-roll-image: url("assets/roll-yellow.png");
   position: fixed;
   z-index: 70;
   left: var(--card-start-left);
@@ -852,35 +853,58 @@ button {
   width: var(--card-start-width);
   height: var(--card-start-height);
   min-height: 0;
+  display: block;
+  padding: 0;
+  border: var(--ui-line-width) solid #000;
+  background: var(--guest-message-card-bg, #f6ff48);
+  color: #000;
+  font-family: var(--app-font-family);
+  filter: drop-shadow(0 7px 10px rgba(49, 31, 24, 0.18));
+  box-sizing: border-box;
+  overflow: visible;
+  isolation: isolate;
+  pointer-events: none;
+  transform-origin: top center;
+  animation:
+    guest-message-card-fold 1500ms steps(6, end) forwards,
+    guest-message-card-fly 700ms cubic-bezier(0.4, 0, 0.2, 1) 1700ms forwards;
+  will-change: left, top, width, height, transform;
+}
+
+.guest-message-flight-content {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   align-content: stretch;
   justify-items: center;
   gap: var(--header-side-border-width);
   padding: var(--header-side-border-width);
-  border: var(--ui-line-width) solid #000;
-  background: var(--guest-message-card-bg, #f4ff2d);
-  color: #000;
-  font-family: var(--app-font-family);
-  filter: drop-shadow(0 7px 10px rgba(49, 31, 24, 0.18));
   box-sizing: border-box;
   overflow: hidden;
-  pointer-events: none;
-  transform-origin: top center;
-  animation:
-    guest-message-card-fold 1500ms steps(6, end) forwards,
-    guest-message-card-fly 700ms cubic-bezier(0.4, 0, 0.2, 1) 1500ms forwards;
-  will-change: left, top, width, height, transform;
+  animation: guest-message-card-content-hide 700ms linear 1700ms forwards;
 }
 
-.guest-message-flight-card > * {
-  animation: guest-message-card-content-hide 700ms linear 1500ms forwards;
+.guest-message-roll {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 2;
+  width: 108%;
+  aspect-ratio: 4225 / 244;
+  background: transparent var(--guest-message-roll-image) center / 100% 100% no-repeat;
+  opacity: 0;
+  transform: translate(-50%, 56%);
+  pointer-events: none;
+  animation: guest-message-roll-show 1500ms steps(6, end) forwards;
 }
 
 .guest-message-flight-card.is-landed::after {
   content: "";
   position: absolute;
   inset: -52% -18%;
+  z-index: -1;
   border-radius: 999px;
   background:
     radial-gradient(ellipse at 12% 50%, rgba(255, 255, 238, 0.98) 0 8%, rgba(255, 237, 104, 0.82) 18%, rgba(255, 197, 39, 0.48) 34%, transparent 56%),
@@ -891,7 +915,7 @@ button {
   animation: pig-mouth-glow 1600ms ease-in-out infinite;
 }
 
-.guest-message-flight-card.is-landed > * {
+.guest-message-flight-card.is-landed .guest-message-flight-content {
   opacity: 0;
 }
 
@@ -927,8 +951,6 @@ button {
     top: var(--card-start-top);
     width: var(--card-start-width);
     height: var(--card-folded-height);
-    gap: var(--header-side-border-width);
-    padding: var(--header-side-border-width);
     border-width: 0;
     opacity: 1;
     transform: rotate(0deg);
@@ -938,8 +960,6 @@ button {
     top: var(--card-target-top);
     width: var(--card-target-width);
     height: var(--card-target-height);
-    gap: 0;
-    padding: 0;
     border-width: 0;
     opacity: 1;
     transform: rotate(-3deg);
@@ -953,8 +973,21 @@ button {
   }
 }
 
+@keyframes guest-message-roll-show {
+  0% {
+    opacity: 0;
+  }
+
+  12%,
+  100% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .guest-message-flight-card {
+  .guest-message-flight-card,
+  .guest-message-flight-content,
+  .guest-message-roll {
     animation-duration: 1ms;
     animation-delay: 0ms;
   }
@@ -1355,7 +1388,7 @@ button {
   gap: var(--header-side-border-width);
   color: #000;
   font-family: inherit;
-  font-size: clamp(20px, 4.1667vw, 45px);
+  font-size: var(--rolling-banner-font-size);
   font-weight: 500;
   text-align: center;
 }
@@ -1387,7 +1420,7 @@ button {
   background: #fff;
   color: #000;
   font-family: inherit;
-  font-size: clamp(18px, 3.3333vw, 36px);
+  font-size: var(--rolling-banner-font-size);
   font-weight: 500;
   line-height: 1.2;
   padding: var(--header-side-border-width);

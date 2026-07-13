@@ -62,21 +62,23 @@ const PIG_ASSET_OPEN = PIG_ASSET;
 const PIG_BOX_ASSET = "assets/asset-pig-head-box.png";
 const RICECAKE_PLAIN_ASSET = "assets/asset-ricecake-plain.png";
 const GULBI_ASSET = "assets/asset-gulbi.png";
-const GUEST_MESSAGE_OFFER_MS = 2200;
+const GUEST_MESSAGE_OFFER_MS = 2400;
 const GUEST_MESSAGE_THEMES = [
   {
     id: "mouth-1",
-    cardBg: "#97e872",
-    panelStart: "#97e872",
-    panelEnd: "#97e872",
+    cardBg: "#91ff85",
+    panelStart: "#91ff85",
+    panelEnd: "#91ff85",
     panelAccent: "rgba(66, 148, 44, 0.28)",
+    rollImage: "assets/roll-green.png",
   },
   {
     id: "mouth-2",
-    cardBg: "#f4ff2d",
-    panelStart: "#f4ff2d",
-    panelEnd: "#f4ff2d",
+    cardBg: "#f6ff48",
+    panelStart: "#f6ff48",
+    panelEnd: "#f6ff48",
     panelAccent: "rgba(180, 139, 24, 0.28)",
+    rollImage: "assets/roll-yellow.png",
   },
 ];
 const PIG_MONEY_DECORATIONS = [
@@ -1544,14 +1546,28 @@ function playGuestMessageFold(form) {
   const flightCard = (card || form).cloneNode(true);
   flightCard.classList.add("guest-message-flight-card");
   flightCard.setAttribute("aria-hidden", "true");
+  const flightContent = document.createElement("div");
+  flightContent.className = "guest-message-flight-content";
+  while (flightCard.firstChild) {
+    flightContent.append(flightCard.firstChild);
+  }
+  const roll = document.createElement("span");
+  roll.className = "guest-message-roll";
+  roll.setAttribute("aria-hidden", "true");
+  flightCard.append(flightContent, roll);
+
   const cardStyles = getComputedStyle(card || form);
   const cardBg = cardStyles.getPropertyValue("--guest-message-card-bg").trim();
   if (cardBg) {
     flightCard.style.setProperty("--guest-message-card-bg", cardBg);
   }
+  const rollImage = cardStyles.getPropertyValue("--guest-message-roll-image").trim();
+  if (rollImage) {
+    flightCard.style.setProperty("--guest-message-roll-image", rollImage);
+  }
 
   const sourceFields = [...(card || form).querySelectorAll("input, textarea")];
-  const flightFields = [...flightCard.querySelectorAll("input, textarea")];
+  const flightFields = [...flightContent.querySelectorAll("input, textarea")];
   flightFields.forEach((field, index) => {
     const value = sourceFields[index]?.value || "";
     field.value = value;
@@ -1575,11 +1591,19 @@ function playGuestMessageFold(form) {
   flightCard.style.setProperty("--card-target-height", `${targetHeight.toFixed(1)}px`);
   document.body.append(flightCard);
 
+  const handleAnimationStart = (event) => {
+    if (event.target !== flightCard || event.animationName !== "guest-message-card-fly") return;
+    roll.remove();
+    flightCard.removeEventListener("animationstart", handleAnimationStart);
+  };
+
   const handleAnimationEnd = (event) => {
+    if (event.target !== flightCard) return;
     if (event.animationName !== "guest-message-card-fly") return;
     flightCard.classList.add("is-landed");
     flightCard.removeEventListener("animationend", handleAnimationEnd);
   };
+  flightCard.addEventListener("animationstart", handleAnimationStart);
   flightCard.addEventListener("animationend", handleAnimationEnd);
   return flightCard;
 }
@@ -1667,6 +1691,7 @@ function applyGuestMessageTheme() {
   const theme = GUEST_MESSAGE_THEMES[Math.floor(Math.random() * GUEST_MESSAGE_THEMES.length)];
   form.dataset.messageTheme = theme.id;
   form.style.setProperty("--guest-message-card-bg", theme.cardBg);
+  form.style.setProperty("--guest-message-roll-image", `url("${theme.rollImage}")`);
   form.style.setProperty("--guest-message-panel-start", theme.panelStart);
   form.style.setProperty("--guest-message-panel-end", theme.panelEnd);
   form.style.setProperty("--guest-message-panel-accent", theme.panelAccent);
