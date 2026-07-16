@@ -2,9 +2,21 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>고사상 꾸미기</title>
     <meta name="description" content="새 시작을 응원하는 고사상 꾸미기">
+    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#000000">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+    <meta name="color-scheme" content="dark light">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="msapplication-navbutton-color" content="#000000">
+    <style>
+      html,
+      body {
+        background: #000;
+      }
+    </style>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f4c64f'/%3E%3Ccircle cx='32' cy='34' r='18' fill='%23f6c7ad'/%3E%3Cellipse cx='32' cy='34' rx='11' ry='8' fill='%23e89178'/%3E%3Ccircle cx='27' cy='33' r='2' fill='%23551b16'/%3E%3Ccircle cx='37' cy='33' r='2' fill='%23551b16'/%3E%3C/svg%3E">
     <link rel="preload" href="assets/asset-pig-head.png" as="image">
     <link rel="preload" href="assets/asset-pig-head-box.png" as="image">
@@ -39,7 +51,7 @@
     <link rel="preload" href="assets/money-right-ear-2.png" as="image">
     <link rel="preload" href="assets/money-left-ear-3.png" as="image">
     <link rel="preload" href="assets/money-right-ear-3.png" as="image">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260716-header-hscroll">
   </head>
   <body>
     <div class="rolling-banner" aria-label="축 기원 염원 행복 행운 대박 축복 희망 성공 사랑 횡재 대운 금전운">
@@ -243,6 +255,6 @@
         </div>
       </section>
     </template>
-    <script src="app.js" defer></script>
+    <script src="app.js?v=20260716-header-hscroll" defer></script>
   </body>
 </html>

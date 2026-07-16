@@ -1,14 +1,39 @@
-const LOCAL_HOSTS = ["localhost", "127.0.0.1"];
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1"];
 const LOCAL_TEST_TABLE_ID = "t-ee50a5e17cf4680c";
 const LOCAL_TEST_OWNER_TOKEN = "751820bf0f42c78b62c9c5d2";
 const isLocalHost = LOCAL_HOSTS.includes(location.hostname);
+const isLocalNetworkHost = isLocalHost || isPrivateNetworkHost(location.hostname);
 const APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbxmHrWQVkvEmc5JVLYF67Q8I6u_6R78zmgtp4aWzPCQppe0EturTQgP9VwN3gOviJBSUA/exec";
+const BROWSER_CHROME_COLOR = "#000000";
 
 const CONFIG = {
   appsScriptUrl: APPS_SCRIPT_URL,
-  publicBaseUrl: isLocalHost ? `${location.origin}${location.pathname}` : "https://meoyaho.github.io/goggu/",
+  publicBaseUrl: getPublicBaseUrl(),
 };
+
+function getPublicBaseUrl() {
+  if (isLocalNetworkHost) return `${location.origin}${location.pathname}`;
+  return "https://meoyaho.github.io/goggu/";
+}
+
+function isPrivateNetworkHost(hostname) {
+  if (hostname.endsWith(".local")) return true;
+
+  const ipv4 = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!ipv4) return false;
+
+  const parts = ipv4.slice(1).map(Number);
+  if (parts.some((part) => part < 0 || part > 255)) return false;
+
+  const [first, second] = parts;
+  return (
+    first === 10 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  );
+}
 
 const TABLES_KEY = "pig_head_tables";
 const MESSAGES_KEY = "pig_head_messages";
@@ -199,8 +224,356 @@ let activeScreenScrollbarConfigs = [];
 let screenScrollbarResizeObserver = null;
 let screenScrollbarResizeListenerAttached = false;
 const screenScrollbarSources = new Map();
+const guestEntryScrollLockTargets = new WeakSet();
+let layoutViewportHeightBeforeKeyboard = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
+const KEYBOARD_PAN_CONFIGS = [
+  {
+    bodyClass: "is-wish-field-focused",
+    offsetProperty: "--wish-keyboard-offset",
+    focusSelector: ".wish-text-input",
+    targetSelector: "[data-wish-inputs]",
+    scrollContainerSelector: ".asset-decor-panel.is-active",
+  },
+  {
+    bodyClass: "is-group-field-focused",
+    offsetProperty: "--group-keyboard-offset",
+    focusSelector: "[data-group-input]",
+    targetSelector: "[data-group-input]",
+    scrollContainerSelector: ".group-name-scroll-body",
+  },
+  {
+    bodyClass: "is-guest-field-focused",
+    offsetProperty: "--guest-keyboard-offset",
+    focusSelector: ".guest-message-panel input, .guest-message-panel textarea",
+    targetSelector: ".guest-message-panel input, .guest-message-panel textarea",
+    scrollContainerSelector: ".guest-message-panel",
+  },
+];
 
+syncBrowserChromeColor();
+syncAppViewportHeight();
+wireAppViewportHeight();
+wireRootScrollLock();
 init();
+
+function wireAppViewportHeight() {
+  window.addEventListener("scroll", syncAppViewportHeight, { passive: true });
+  window.addEventListener("resize", syncAppViewportHeight, { passive: true });
+  window.addEventListener("orientationchange", () => requestAnimationFrame(resetAppViewportHeightLock), { passive: true });
+  window.addEventListener("pageshow", syncAppViewportHeight, { passive: true });
+  window.visualViewport?.addEventListener("resize", syncAppViewportHeight, { passive: true });
+  window.visualViewport?.addEventListener("scroll", syncAppViewportHeight, { passive: true });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) syncAppViewportHeight();
+  });
+}
+
+function syncAppViewportHeight() {
+  forceRootScrollTop();
+  requestAnimationFrame(syncKeyboardPanOffsets);
+  requestAnimationFrame(syncActiveScreenScrollbars);
+}
+
+function resetAppViewportHeightLock() {
+  syncAppViewportHeight();
+}
+
+function isKeyboardPanActive() {
+  return KEYBOARD_PAN_CONFIGS.some(({ bodyClass }) => document.body.classList.contains(bodyClass));
+}
+
+function setKeyboardPanMode(bodyClass, isActive) {
+  const config = KEYBOARD_PAN_CONFIGS.find((item) => item.bodyClass === bodyClass);
+  const activeElement = document.activeElement;
+  if (!isActive && config && activeElement instanceof HTMLElement && activeElement.closest?.(config.targetSelector)) {
+    activeElement.blur();
+  }
+  document.body.classList.toggle(bodyClass, isActive);
+  syncKeyboardPanOffsets();
+  if (isActive) {
+    scheduleKeyboardPanSync();
+  } else {
+    recoverAppViewportAfterKeyboard();
+  }
+}
+
+function clearKeyboardPanModes() {
+  const activeElement = document.activeElement;
+  const shouldBlur = KEYBOARD_PAN_CONFIGS.some(({ focusSelector }) => (
+    activeElement instanceof HTMLElement && activeElement.matches?.(focusSelector)
+  ));
+  if (shouldBlur) activeElement.blur();
+
+  KEYBOARD_PAN_CONFIGS.forEach(({ bodyClass, offsetProperty }) => {
+    document.body.classList.remove(bodyClass);
+    document.documentElement.style.setProperty(offsetProperty, "0px");
+  });
+  recoverAppViewportAfterKeyboard();
+}
+
+function recoverAppViewportAfterKeyboard() {
+  forceRootScrollTop();
+  syncKeyboardPanOffsets();
+  requestAnimationFrame(syncActiveScreenScrollbars);
+}
+
+function syncKeyboardPanOffsets() {
+  syncKeyboardViewportInset();
+  KEYBOARD_PAN_CONFIGS.forEach(syncKeyboardPanOffset);
+}
+
+function scheduleKeyboardPanSync() {
+  syncAppViewportHeight();
+  requestAnimationFrame(syncKeyboardPanOffsets);
+  window.setTimeout(syncKeyboardPanOffsets, 80);
+  window.setTimeout(syncKeyboardPanOffsets, 180);
+  window.setTimeout(syncKeyboardPanOffsets, 320);
+}
+
+function syncKeyboardViewportInset() {
+  const viewport = window.visualViewport;
+  if (!isKeyboardPanActive() || !viewport) {
+    layoutViewportHeightBeforeKeyboard = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
+    document.documentElement.style.setProperty("--keyboard-viewport-inset", "0px");
+    return 0;
+  }
+
+  const layoutHeight = Math.max(
+    layoutViewportHeightBeforeKeyboard,
+    window.innerHeight,
+    document.documentElement.clientHeight || 0,
+  );
+  const inset = Math.max(0, Math.ceil(layoutHeight - viewport.height - viewport.offsetTop));
+  document.documentElement.style.setProperty("--keyboard-viewport-inset", `${inset}px`);
+  return inset;
+}
+
+function syncKeyboardPanOffset(config) {
+  const { bodyClass, offsetProperty, focusSelector, targetSelector } = config;
+  if (!document.body.classList.contains(bodyClass)) {
+    document.documentElement.style.setProperty(offsetProperty, "0px");
+    return;
+  }
+
+  const activeElement = document.activeElement;
+  if (!activeElement?.matches?.(focusSelector)) {
+    document.body.classList.remove(bodyClass);
+    document.documentElement.style.setProperty(offsetProperty, "0px");
+    requestAnimationFrame(recoverAppViewportAfterKeyboard);
+    return;
+  }
+
+  const target = activeElement.closest?.(targetSelector) || activeElement;
+  if (!target) return;
+
+  const viewport = window.visualViewport;
+  const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  const viewportTop = viewport ? viewport.offsetTop : 0;
+  const rect = target.getBoundingClientRect();
+  const targetBottom = viewportBottom - 16;
+  const targetTop = viewportTop + 16;
+  const offset = Math.max(0, Math.ceil(rect.bottom - targetBottom));
+  const topOffset = Math.max(0, Math.ceil(targetTop - rect.top));
+  document.documentElement.style.setProperty(offsetProperty, `${offset}px`);
+  scrollKeyboardTargetIntoView(target, config, offset, topOffset);
+}
+
+function scrollKeyboardTargetIntoView(target, config, downOffset, upOffset) {
+  // Prefer the configured pan container. Searching from `target` first can
+  // return the field itself (a textarea is scrollable), which would scroll the
+  // field's inner content instead of panning the panel to reveal the field.
+  const scrollable = findKeyboardScrollContainer(target, config)
+    || findScrollableTouchTarget(target.parentElement);
+  if (!scrollable) return;
+
+  const viewport = window.visualViewport;
+  const viewportTop = viewport ? viewport.offsetTop : 0;
+  const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  const scrollableRect = scrollable.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const visibleTop = Math.max(scrollableRect.top, viewportTop) + 16;
+  const visibleBottom = Math.min(scrollableRect.bottom, viewportBottom) - 16;
+  const neededDownOffset = Math.max(downOffset, Math.ceil(targetRect.bottom - visibleBottom));
+  const neededUpOffset = Math.max(upOffset, Math.ceil(visibleTop - targetRect.top));
+
+  if (neededDownOffset > 0) {
+    scrollable.scrollTop += neededDownOffset + 4;
+    return;
+  }
+
+  if (neededUpOffset > 0) {
+    scrollable.scrollTop -= neededUpOffset + 4;
+  }
+}
+
+function syncBrowserChromeColor() {
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    meta.setAttribute("content", BROWSER_CHROME_COLOR);
+  });
+
+  const navButtonMeta = document.querySelector('meta[name="msapplication-navbutton-color"]');
+  navButtonMeta?.setAttribute("content", BROWSER_CHROME_COLOR);
+}
+
+function wireRootScrollLock() {
+  let startX = 0;
+  let startY = 0;
+  const touchOptions = { passive: false, capture: true };
+
+  const handleTouchStart = (event) => {
+    if (event.touches.length !== 1) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+  };
+
+  const handleTouchMove = (event) => {
+    if (event.touches.length !== 1) {
+      preventScrollEvent(event);
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+    handleScrollableGesture(event, deltaX, deltaY);
+  };
+
+  const handleWheel = (event) => {
+    handleScrollableGesture(event, event.deltaX || 0, -(event.deltaY || 0));
+  };
+
+  [window, document, document.body, $app].filter(Boolean).forEach((target) => {
+    target.addEventListener("touchstart", handleTouchStart, touchOptions);
+    target.addEventListener("touchmove", handleTouchMove, touchOptions);
+    target.addEventListener("wheel", handleWheel, touchOptions);
+  });
+}
+
+function handleScrollableGesture(event, deltaX, deltaY) {
+  // Never suppress touches that land on a text field. iOS refuses to raise the
+  // software keyboard when preventDefault() runs anywhere in the tap gesture,
+  // even though focus still fires — so a tap with the slightest finger movement
+  // over an input would focus silently with no keyboard.
+  if (isEditableTouchTarget(event.target)) return;
+
+  const scrollable = findScrollableTouchTarget(event.target)
+    || (isKeyboardPanActive() ? findKeyboardScrollContainer(event.target) : null);
+
+  if (!scrollable) {
+    // Allow native horizontal scrolling (e.g. an overflowing header title).
+    if (Math.abs(deltaX) > Math.abs(deltaY) && findHorizontalScrollableTouchTarget(event.target)) return;
+    preventScrollEvent(event);
+    return;
+  }
+
+  if (Math.abs(deltaY) < Math.abs(deltaX)) return;
+
+  const atTop = scrollable.scrollTop <= 0;
+  const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1;
+  if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+    preventScrollEvent(event);
+  }
+}
+
+function preventScrollEvent(event) {
+  if (event.cancelable) event.preventDefault();
+}
+
+function setGuestEntryView(isGuestEntry) {
+  document.body.classList.toggle("is-guest-entry-view", isGuestEntry);
+  if (!isGuestEntry) setKeyboardPanMode("is-guest-field-focused", false);
+  if (isGuestEntry) forceRootScrollTop();
+}
+
+function forceRootScrollTop() {
+  const scrollingElement = document.scrollingElement;
+  if (scrollingElement) scrollingElement.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+}
+
+function isEditableTouchTarget(target) {
+  const element = target instanceof Element ? target : target?.parentElement;
+  return Boolean(element?.closest?.(
+    "input, textarea, select, [contenteditable]:not([contenteditable='false'])",
+  ));
+}
+
+function findHorizontalScrollableTouchTarget(target) {
+  for (
+    let element = target instanceof Element ? target : target?.parentElement;
+    element;
+    element = element.parentElement
+  ) {
+    if (element === document.body || element === document.documentElement) return null;
+    const style = getComputedStyle(element);
+    const canScrollX = ["auto", "scroll"].includes(style.overflowX) || ["auto", "scroll"].includes(style.overflow);
+    if (canScrollX && element.scrollWidth > element.clientWidth + 1) return element;
+  }
+  return null;
+}
+
+function findScrollableTouchTarget(target) {
+  for (
+    let element = target instanceof Element ? target : target?.parentElement;
+    element;
+    element = element.parentElement
+  ) {
+    if (element === document.body || element === document.documentElement) return null;
+    const style = getComputedStyle(element);
+    const canScrollY = ["auto", "scroll"].includes(style.overflowY) || ["auto", "scroll"].includes(style.overflow);
+    if (canScrollY && element.scrollHeight > element.clientHeight + 1) return element;
+  }
+  return null;
+}
+
+function findKeyboardScrollContainer(target, config = null) {
+  const element = target instanceof Element ? target : target?.parentElement;
+  if (!element) return null;
+
+  if (config?.scrollContainerSelector) {
+    const configured = element.closest(config.scrollContainerSelector);
+    if (configured) return configured;
+  }
+
+  return element.closest(
+    ".guest-message-panel, .group-name-scroll-body, .asset-decor-panel.is-active, .setup-step.is-active, .main-screen.is-guest-entry",
+  );
+}
+
+function wireGuestKeyboardView(form) {
+  if (!form) return;
+  const mainScreen = form.closest(".main-screen") || document.querySelector(".main-screen");
+  const fields = [...form.querySelectorAll("input, textarea")];
+  installKeyboardTransformPan(mainScreen, fields);
+}
+
+function wireGuestEntrySurfaceScrollLock(root) {
+  if (!root) return;
+
+  [
+    root,
+    root.querySelector(".main-content"),
+    root.querySelector(".table-stage"),
+    root.querySelector(".guest-message-panel"),
+    root.querySelector(".guest-message-card"),
+    root.querySelector(".screen-footer"),
+  ].filter(Boolean).forEach((target) => {
+    if (guestEntryScrollLockTargets.has(target)) return;
+    guestEntryScrollLockTargets.add(target);
+    target.addEventListener("touchmove", lockGuestEntrySurfacePan, { capture: true, passive: false });
+    target.addEventListener("wheel", lockGuestEntrySurfacePan, { capture: true, passive: false });
+  });
+}
+
+function lockGuestEntrySurfacePan(event) {
+  if (isEditableTouchTarget(event.target)) return;
+  if (findScrollableTouchTarget(event.target)) return;
+  if (isKeyboardPanActive() && findKeyboardScrollContainer(event.target)) return;
+  preventScrollEvent(event);
+  forceRootScrollTop();
+}
 
 async function init() {
   if (!tableId) {
@@ -240,6 +613,7 @@ async function loadData() {
 }
 
 function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
+  setGuestEntryView(false);
   setLoadingView(true);
   $app.innerHTML = `
     <section class="screen loading-screen" data-loading-screen>
@@ -259,6 +633,8 @@ function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
 
 function setLoadingView(isLoading) {
   document.body.classList.toggle("is-loading-view", isLoading);
+  if (isLoading) clearKeyboardPanModes();
+  syncBrowserChromeColor();
 }
 
 function startLoadingCandyStack() {
@@ -302,6 +678,7 @@ function startLoadingCandyStack() {
 }
 
 function renderEmpty() {
+  setGuestEntryView(false);
   setLoadingView(true);
   $app.innerHTML = `
     <section class="screen empty-screen">
@@ -320,6 +697,7 @@ function renderEmpty() {
 }
 
 function renderSetup() {
+  setGuestEntryView(false);
   setLoadingView(false);
   $app.replaceChildren(clone("setup-template"));
   const form = document.querySelector("[data-setup-form]");
@@ -494,6 +872,8 @@ function syncGroupNameCompletionUi() {
 }
 
 function showSetupStep(stepName) {
+  if (stepName !== "blessing") setKeyboardPanMode("is-group-field-focused", false);
+  if (stepName !== "decorate") setKeyboardPanMode("is-wish-field-focused", false);
   document.querySelectorAll("[data-setup-step]").forEach((step) => {
     step.classList.toggle("is-active", step.dataset.setupStep === stepName);
   });
@@ -511,15 +891,20 @@ function renderMain() {
   const showOwnerMessages = ownerMode && state.ownerViewingMessages;
   const showGuestMessages = !ownerMode && state.guestViewingMessages;
   const showMessageFeed = showOwnerMessages || showGuestMessages;
+  const showGuestEntry = !ownerMode && !showGuestMessages;
   const mainScreen = document.querySelector(".main-screen");
+  const guestMessageForm = document.querySelector("[data-guest-message-form]");
 
+  setGuestEntryView(showGuestEntry);
   mainScreen?.classList.toggle("is-owner-access-notice", showOwnerAccess);
+  mainScreen?.classList.toggle("is-guest-entry", showGuestEntry);
+  mainScreen?.classList.toggle("is-guest-message-feed", showGuestMessages);
   document.querySelector("[data-main-title]").textContent = `${state.table.owner_name} 대박 기원`;
   document.querySelector("[data-owner-only]").hidden = !ownerMode;
   document.querySelector("[data-guest-only]").hidden = ownerMode;
   document.querySelector("[data-owner-access-panel]").hidden = !showOwnerAccess;
   document.querySelector("[data-message-feed]").closest(".message-feed-panel").hidden = !showMessageFeed;
-  document.querySelector("[data-guest-message-form]").hidden = ownerMode || showGuestMessages;
+  guestMessageForm.hidden = ownerMode || showGuestMessages;
   syncGuestPrompt(ownerMode || showGuestMessages);
   syncOwnerAccessCopy();
 
@@ -528,33 +913,48 @@ function renderMain() {
   });
   renderMessageFeed();
   applyGuestMessageTheme();
-  wireMainScreenScrollbar(showOwnerAccess);
+  wireMainScreenScrollbar({ showOwnerAccess, showGuestEntry });
 
-  document.querySelector("[data-guest-message-form]").addEventListener("submit", submitMessageForm);
+  guestMessageForm.addEventListener("submit", submitMessageForm);
+  if (showGuestEntry) wireGuestEntrySurfaceScrollLock(mainScreen);
+  wireGuestKeyboardView(guestMessageForm);
   configureOwnerActionButton();
   configureGuestActionButton();
 }
 
-function wireMainScreenScrollbar(showOwnerAccess) {
-  wireScreenScrollbars([
-    showOwnerAccess
-      ? {
-          key: "owner-access",
-          rootSelector: ".main-screen",
-          startSelector: ".owner-access-panel",
-          sourceSelector: ".owner-access-scroll",
-          scrollbarSelector: "[data-message-feed-scrollbar]",
-          thumbSelector: "[data-message-feed-scrollbar-thumb]",
-        }
-      : {
-          key: "message-feed",
-          rootSelector: ".main-screen",
-          startSelector: ".message-feed-panel",
-          sourceSelector: ".message-feed",
-          scrollbarSelector: "[data-message-feed-scrollbar]",
-          thumbSelector: "[data-message-feed-scrollbar-thumb]",
-        },
-  ]);
+function wireMainScreenScrollbar({ showOwnerAccess, showGuestEntry }) {
+  let config;
+  if (showOwnerAccess) {
+    config = {
+      key: "owner-access",
+      rootSelector: ".main-screen",
+      startSelector: ".owner-access-panel",
+      sourceSelector: ".owner-access-scroll",
+      scrollbarSelector: "[data-message-feed-scrollbar]",
+      thumbSelector: "[data-message-feed-scrollbar-thumb]",
+    };
+  } else if (showGuestEntry) {
+    // When writing a message, the scrollbar tracks the guest card (which scrolls
+    // if the 축원 field can't fit) — same right-edge scrollbar as the name step.
+    config = {
+      key: "guest-message",
+      rootSelector: ".main-screen",
+      startSelector: ".guest-message-panel",
+      sourceSelector: ".guest-message-card",
+      scrollbarSelector: "[data-message-feed-scrollbar]",
+      thumbSelector: "[data-message-feed-scrollbar-thumb]",
+    };
+  } else {
+    config = {
+      key: "message-feed",
+      rootSelector: ".main-screen",
+      startSelector: ".message-feed-panel",
+      sourceSelector: ".message-feed",
+      scrollbarSelector: "[data-message-feed-scrollbar]",
+      thumbSelector: "[data-message-feed-scrollbar-thumb]",
+    };
+  }
+  wireScreenScrollbars([config]);
 }
 
 function syncGuestPrompt(hidden) {
@@ -702,6 +1102,7 @@ function showDecorTab(name) {
     prompt.classList.toggle("is-wish-prompt", name === "wish");
   }
 
+  if (name !== "wish") setKeyboardPanMode("is-wish-field-focused", false);
   syncDecorScrollbarSource();
 }
 
@@ -782,7 +1183,10 @@ function updateDecorScrollbar() {
   }
   const thumbHeight = Math.min(trackHeight, Math.max(42, trackHeight * (source.clientHeight / source.scrollHeight)));
   const thumbTravel = Math.max(0, trackHeight - thumbHeight);
-  const thumbTop = thumbTravel * (source.scrollTop / scrollableHeight);
+  // Clamp the scroll ratio: iOS rubber-band overscroll pushes scrollTop out of
+  // [0, scrollableHeight], which would otherwise slide the thumb past the track.
+  const scrollRatio = Math.min(1, Math.max(0, source.scrollTop / scrollableHeight));
+  const thumbTop = thumbTravel * scrollRatio;
 
   scrollbar.style.setProperty("--decor-scrollbar-top", `${trackTop}px`);
   scrollbar.style.setProperty("--decor-scrollbar-height", `${trackHeight}px`);
@@ -889,7 +1293,10 @@ function updateScreenScrollbar(config) {
   }
   const thumbHeight = Math.min(trackHeight, Math.max(42, trackHeight * (source.clientHeight / source.scrollHeight)));
   const thumbTravel = Math.max(0, trackHeight - thumbHeight);
-  const thumbTop = thumbTravel * (source.scrollTop / scrollableHeight);
+  // Clamp the scroll ratio: iOS rubber-band overscroll pushes scrollTop out of
+  // [0, scrollableHeight], which would otherwise slide the thumb past the track.
+  const scrollRatio = Math.min(1, Math.max(0, source.scrollTop / scrollableHeight));
+  const thumbTop = thumbTravel * scrollRatio;
 
   scrollbar.style.setProperty("--scrollbar-top", `${trackTop}px`);
   scrollbar.style.setProperty("--scrollbar-height", `${trackHeight}px`);
@@ -912,6 +1319,24 @@ function wireWishInputs() {
     renderDecorationPreview(state.setupDecoration);
     syncSetupCompletionUi();
   };
+
+  // The transparent input already covers the whole 4-cell row (inset:0, z-index:2,
+  // pointer-events:auto), so a tap lands on it and iOS focuses it natively — which
+  // is the ONLY reliable way to raise the software keyboard. Programmatic focus()
+  // from a pointerdown/touch handler is untrusted on iOS and silently fails to
+  // open the keyboard, so we deliberately do NOT call focus() here.
+  //
+  // Raising the field above the keyboard is handled by installKeyboardTransformPan
+  // (a CSS transform, never a reflow — reflowing the focused field's ancestors
+  // makes iOS abort the keyboard on this device).
+  installKeyboardTransformPan(input.closest("[data-setup-step]"), [input]);
+
+  // Desktop fallback: a real mouse click focuses natively too; calling focus()
+  // inside a trusted click is harmless and helps if the covering input is ever
+  // missed. It never runs before the native focus on touch devices.
+  root.addEventListener("click", () => {
+    if (document.activeElement !== input) input.focus();
+  });
 
   input.addEventListener("input", (event) => {
     if (event.isComposing || input.dataset.composing === "true") {
@@ -973,6 +1398,7 @@ function wireSetupDrag() {
   palette.addEventListener("click", (event) => {
     const token = event.target.closest("[data-asset-value]");
     if (!token) return;
+    if (window.PointerEvent && event.detail > 0) return;
     if (token.dataset.suppressClick === "true") {
       delete token.dataset.suppressClick;
       return;
@@ -1007,6 +1433,8 @@ function startPalettePointerDrag(event) {
   const token = event.target.closest("[data-asset-value]");
   if (!token) return;
   if (event.button != null && event.button !== 0) return;
+  if (token.dataset.pointerDragActive === "true") return;
+  token.dataset.pointerDragActive = "true";
   event.preventDefault();
   try {
     token.setPointerCapture?.(event.pointerId);
@@ -1042,10 +1470,11 @@ function startPalettePointerDrag(event) {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", end);
     window.removeEventListener("pointercancel", end);
+    delete token.dataset.pointerDragActive;
 
     window.setTimeout(() => {
       delete token.dataset.suppressClick;
-    }, 0);
+    }, 400);
 
     if (!hasDragged) {
       if (endEvent.type !== "pointercancel") addToFirstEmptyPlate(value);
@@ -1451,6 +1880,137 @@ function syncGroupInputs(initialValue = "") {
       syncGroupNameCompletionUi();
     });
   });
+  wireGroupNameKeyboardPan(inputs);
+}
+
+function wireGroupNameKeyboardPan(inputs) {
+  if (!inputs.length || inputs[0].dataset.kbPanWired === "true") return;
+  inputs.forEach((input) => { input.dataset.kbPanWired = "true"; });
+  installKeyboardTransformPan(inputs[0].closest("[data-setup-step]"), inputs);
+}
+
+// Slides `panStep` up with a CSS transform so a focused field clears the software
+// keyboard, then lets the user drag to scroll (to reach the footer above the
+// keyboard) and tap empty space to dismiss it.
+//
+// Everything is done with transforms — never a reflow. On iOS, reflowing a
+// focused field's ancestors (changing overflow/padding/display) while the
+// keyboard animates in makes the keyboard flash up and vanish; a compositor-only
+// transform leaves it alone. We also wait until the visual viewport has actually
+// shrunk (keyboard fully up) before measuring, for the same reason.
+function installKeyboardTransformPan(panStep, fields) {
+  if (!panStep || !fields.length) return;
+  if (panStep.dataset.kbTransformPan === "true") return;   // don't double-wire the same element
+  panStep.dataset.kbTransformPan = "true";
+  const MARGIN = 12;
+  const INTERACTIVE = "input, textarea, select, button, a, [role='tab'], [role='button']";
+  let panY = 0;
+
+  const setTransform = (y, animate) => {
+    panY = y;
+    panStep.style.transition = animate ? "transform 180ms ease-out" : "none";
+    panStep.style.transform = y ? `translateY(${y}px)` : "";
+  };
+
+  const focusedField = () => fields.find((field) => field === document.activeElement) || null;
+  const viewportBottom = () => {
+    const viewport = window.visualViewport;
+    return viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  };
+  const viewportHeight = () => window.visualViewport?.height || window.innerHeight;
+  // The layout viewport (window.innerHeight) does NOT shrink for the iOS keyboard,
+  // only the visual viewport does — so their gap tells us whether the keyboard is up.
+  const keyboardUp = () => (window.innerHeight - viewportHeight()) > 120;
+  // How far the content may slide up: enough to bring the bottom (footer) into the
+  // shrunken viewport, i.e. roughly the keyboard's height.
+  const maxScrollUp = () => Math.max(0, Math.ceil(panStep.offsetHeight - viewportHeight()));
+  const clampPan = (y) => Math.min(0, Math.max(-maxScrollUp(), y));
+
+  const revealFocused = () => {
+    const field = focusedField();
+    if (!field) return;
+    const rect = field.getBoundingClientRect();            // already reflects panY
+    const overlap = Math.ceil(rect.bottom - (viewportBottom() - MARGIN));
+    if (overlap > 0) setTransform(clampPan(panY - overlap), true);
+  };
+
+  const enter = () => {
+    const baseline = viewportHeight();
+    let frames = 0;
+    const waitForKeyboard = () => {
+      if (!focusedField()) return;
+      if (baseline - viewportHeight() > 120) {             // keyboard fully up
+        revealFocused();
+        return;
+      }
+      if (frames++ > 90) return;                           // ~1.5s safety cap
+      requestAnimationFrame(waitForKeyboard);
+    };
+    requestAnimationFrame(waitForKeyboard);
+    // Backups in case the viewport-shrink signal is missed or settles late.
+    [250, 500, 800].forEach((delay) => window.setTimeout(revealFocused, delay));
+  };
+
+  window.visualViewport?.addEventListener("resize", () => {
+    // Return home whenever the keyboard is down — even if a field keeps focus
+    // (tapping a button or a scrollable area dismisses the keyboard on iOS without
+    // always blurring the field, so no blur fires to reset us).
+    if (!keyboardUp()) {
+      if (panY !== 0) setTransform(0, true);
+    } else if (focusedField()) {
+      revealFocused();
+    }
+  });
+
+  fields.forEach((field) => {
+    field.addEventListener("focus", enter);
+    field.addEventListener("blur", () => {
+      requestAnimationFrame(() => {
+        if (!focusedField()) setTransform(0, true);
+      });
+    });
+  });
+
+  // Drag to scroll while the keyboard is up, and tap empty space to dismiss.
+  // A drag that starts inside a natively-scrollable area (the ritual card) scrolls
+  // just that area; a drag anywhere else pans the whole step via transform.
+  let startClientY = null;
+  let dragStartPan = 0;
+  let panDrag = false;   // are WE transforming this gesture?
+  let moved = false;     // did the finger move at all (native or transform)?
+
+  panStep.addEventListener("touchstart", (event) => {
+    startClientY = null;
+    panDrag = false;
+    moved = false;
+    if (!focusedField() || event.touches.length !== 1) return;
+    if (event.target?.closest?.(INTERACTIVE)) return;      // fields/buttons behave natively
+    startClientY = event.touches[0].clientY;
+    dragStartPan = panY;
+    // Inside a scrollable region → let it scroll natively; elsewhere → we pan.
+    panDrag = !findScrollableTouchTarget(event.target);
+  }, { passive: true });
+
+  panStep.addEventListener("touchmove", (event) => {
+    if (startClientY == null || !focusedField()) return;
+    const delta = event.touches[0].clientY - startClientY;
+    if (Math.abs(delta) > 6) moved = true;
+    if (!panDrag) return;                                  // native scroll owns this gesture
+    if (event.cancelable) event.preventDefault();          // block native scroll; we transform
+    setTransform(clampPan(dragStartPan + delta), false);
+  }, { passive: false });
+
+  panStep.addEventListener("touchend", (event) => {
+    const didMove = moved;
+    const active = focusedField();
+    startClientY = null;
+    panDrag = false;
+    moved = false;
+    if (didMove || !active) return;                        // a scroll/drag, not a tap
+    if (event.target?.closest?.(INTERACTIVE)) return;      // tapping a field/button keeps the keyboard
+    active.blur();                                         // tap on empty space dismisses the keyboard
+    setTransform(0, true);                                 // …and slide the view back down
+  }, { passive: true });
 }
 
 function isPointInsideRect(x, y, rect) {
@@ -1539,6 +2099,7 @@ async function submitMessageForm(event) {
     action.textContent = "올리는 중";
   }
 
+  await settleViewportAfterMessageInput(form);
   form.classList.add("is-offering");
   const flightCard = playGuestMessageFold(form);
   form.setAttribute("aria-hidden", "true");
@@ -1654,6 +2215,49 @@ function playGuestMessageFold(form) {
   flightCard.addEventListener("animationstart", handleAnimationStart);
   flightCard.addEventListener("animationend", handleAnimationEnd);
   return flightCard;
+}
+
+function settleViewportAfterMessageInput(form) {
+  const focusedField = form.querySelector("input:focus, textarea:focus")
+    || (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName) ? document.activeElement : null);
+  const viewport = window.visualViewport;
+  const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
+  const keyboardLikelyVisible = Boolean(viewport && layoutHeight - viewport.height > 80);
+  if (!focusedField && !keyboardLikelyVisible) return Promise.resolve();
+
+  focusedField?.blur();
+  return new Promise((resolve) => {
+    let resolved = false;
+    let stableFrames = 0;
+    let lastHeight = window.visualViewport?.height || window.innerHeight;
+    let lastOffsetTop = window.visualViewport?.offsetTop || 0;
+    const startedAt = performance.now();
+
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      window.clearTimeout(timeout);
+      resolve();
+    };
+
+    const check = () => {
+      const height = window.visualViewport?.height || window.innerHeight;
+      const offsetTop = window.visualViewport?.offsetTop || 0;
+      const isStable = Math.abs(height - lastHeight) < 1 && Math.abs(offsetTop - lastOffsetTop) < 1;
+      stableFrames = isStable ? stableFrames + 1 : 0;
+      lastHeight = height;
+      lastOffsetTop = offsetTop;
+
+      if (performance.now() - startedAt >= 180 && stableFrames >= 3) {
+        finish();
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+
+    const timeout = window.setTimeout(finish, 460);
+    requestAnimationFrame(check);
+  });
 }
 
 function configureGuestActionButton() {
