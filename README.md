@@ -1,6 +1,6 @@
 # 고사상 꾸미기
 
-새 시작을 응원하는 모바일 우선 정적 웹앱입니다. 제주(祭主)는 NFC 태그나 복사된 주소에 담긴 `?table=t-...&mode=owner` 링크로 처음 접속해 고사상을 꾸미고, 하객(賀客)은 공유받은 `?table=t-...` 링크로 응원을 남깁니다.
+새 시작을 응원하는 모바일 우선 정적 웹앱입니다. 기본 주소로 접속하면 새 고사상을 만들 수 있는 제주(祭主) 링크가 자동 발급되고, 하객(賀客)은 공유받은 `?table=t-...` 링크로 응원을 남깁니다.
 
 ## 실행
 
@@ -21,10 +21,10 @@
 ## 링크 구조
 
 - 제주 링크: `https://meoyaho.github.io/goggu/?table=<고정-table-id>&mode=owner`
-- 예전 제주 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>&owner=<24자리-랜덤-토큰>`
+- 랜덤 제주 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>&owner=<24자리-랜덤-토큰>`
 - 하객 링크: `https://meoyaho.github.io/goggu/?table=<t-16자리-랜덤-id>`
 
-기본 주소만 열거나 지정되지 않은 `table_id`로 접속하면 새 상을 자동 생성하지 않고 제주 링크로 시작하라는 안내를 보여줍니다.
+기본 주소 `https://meoyaho.github.io/goggu/`로 접속하면 랜덤 제주 링크로 이동해 누구나 새 고사상을 시작할 수 있습니다. 존재하지 않는 `table_id`를 하객 링크로 열면 아직 차려지지 않은 상 안내를 보여줍니다.
 
 ## 제주 링크
 

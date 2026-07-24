@@ -577,7 +577,7 @@ function lockGuestEntrySurfacePan(event) {
 
 async function init() {
   if (!tableId) {
-    renderEmpty();
+    startNewTableSetup();
     return;
   }
 
