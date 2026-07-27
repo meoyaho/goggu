@@ -11,6 +11,9 @@ const CONFIG = {
   appsScriptUrl: APPS_SCRIPT_URL,
   publicBaseUrl: getPublicBaseUrl(),
 };
+const APPS_SCRIPT_GET_ATTEMPTS = 2;
+const APPS_SCRIPT_GET_TIMEOUT_MS = 20000;
+const APPS_SCRIPT_RETRY_DELAY_MS = 900;
 
 function getPublicBaseUrl() {
   if (isLocalNetworkHost) return `${location.origin}${location.pathname}`;
@@ -614,10 +617,10 @@ async function loadData() {
 
 function handleInitialLoadError(error) {
   console.warn("[pig-head] initial load failed", error);
-  renderConnectionError(error);
+  renderConnectionError();
 }
 
-function renderConnectionError(error) {
+function renderConnectionError() {
   setGuestEntryView(false);
   setLoadingView(true);
   $app.innerHTML = `
@@ -629,7 +632,6 @@ function renderConnectionError(error) {
             <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
           </div>
           <strong>데이터 연결이 불안정합니다</strong>
-          <span>${getConnectionErrorMessage(error)}</span>
           <button class="primary-action connection-retry-button" type="button" data-retry-load>다시 시도</button>
         </div>
       </div>
@@ -642,12 +644,6 @@ function renderConnectionError(error) {
     });
     init().catch(handleInitialLoadError);
   });
-}
-
-function getConnectionErrorMessage(error) {
-  const message = clean(error?.message);
-  if (message && !message.includes("Apps Script request")) return message;
-  return "네트워크 상태를 확인하고 다시 시도해주세요";
 }
 
 function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
@@ -2537,9 +2533,10 @@ async function api(action, payload) {
   }
 
   const query = new URLSearchParams({ action, ...payload });
+  const url = `${CONFIG.appsScriptUrl}?${query.toString()}`;
   let result;
   try {
-    result = await jsonp(`${CONFIG.appsScriptUrl}?${query.toString()}`);
+    result = await requestAppsScript(action, url);
   } catch (error) {
     throw makeApiConnectionError(action, error);
   }
@@ -2558,6 +2555,77 @@ function makeApiConnectionError(action, error) {
   requestError.action = action;
   requestError.cause = error;
   return requestError;
+}
+
+async function requestAppsScript(action, url) {
+  if (action === "get") {
+    try {
+      return await fetchJsonWithRetry(url, {
+        attempts: APPS_SCRIPT_GET_ATTEMPTS,
+        timeoutMs: APPS_SCRIPT_GET_TIMEOUT_MS,
+      });
+    } catch (error) {
+      console.warn("[pig-head] fetch failed, falling back to JSONP", error);
+      return jsonpWithRetry(url, {
+        attempts: APPS_SCRIPT_GET_ATTEMPTS,
+        timeoutMs: APPS_SCRIPT_GET_TIMEOUT_MS,
+      });
+    }
+  }
+
+  return jsonpWithRetry(url);
+}
+
+async function fetchJsonWithRetry(url, { attempts = 1, timeoutMs } = {}) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetchJson(url, { timeoutMs });
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await wait(APPS_SCRIPT_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
+async function fetchJson(url, { timeoutMs = 15000 } = {}) {
+  const controller = typeof AbortController === "undefined" ? null : new AbortController();
+  const timeoutId = controller
+    ? setTimeout(() => controller.abort(), timeoutMs)
+    : null;
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: controller?.signal,
+    });
+    if (!response.ok) throw new Error(`Apps Script request failed: ${response.status}`);
+    return await response.json();
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+async function jsonpWithRetry(url, { attempts = 1, timeoutMs } = {}) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await jsonp(url, { timeoutMs });
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await wait(APPS_SCRIPT_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  throw lastError;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function localApi(action, payload) {
