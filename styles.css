@@ -2432,3 +2432,174 @@ button {
     width: var(--content-width);
   }
 }
+
+@media (min-height: 480px) {
+  body.is-wide-table-layout {
+    --content-width: min(100vw, calc((var(--screen-height) - var(--bar-height)) * 1.25));
+    --rolling-banner-font-size: clamp(14px, 3.2dvh, 30px);
+    --header-font-size: clamp(30px, 5.46875dvh, 64px);
+    --header-side-border-width: clamp(8px, 1.5625dvh, 18px);
+    --header-inline-padding: clamp(6px, 0.7292dvh, 12px);
+    --decor-action-size: clamp(48px, 6.4dvh, 74px);
+    --decor-complete-width: clamp(150px, 27dvh, 260px);
+    --decor-complete-font-size: clamp(18px, 3.1dvh, 30px);
+    --wide-third-area-height: clamp(168px, 23dvh, 264px);
+    --wide-third-area-tall-height: clamp(260px, 34dvh, 430px);
+    overflow-y: auto;
+  }
+
+  body.is-wide-table-layout .rolling-banner {
+    right: auto;
+    left: 50%;
+    width: var(--content-width);
+    transform: translateX(-50%);
+  }
+
+  body.is-wide-table-layout .app-shell {
+    width: var(--content-width);
+    max-width: var(--content-width);
+    height: auto;
+    min-height: var(--screen-height);
+    margin: 0 auto;
+    display: block;
+    overflow: visible;
+  }
+
+  body.is-wide-table-layout .screen,
+  body.is-wide-table-layout .setup-step,
+  body.is-wide-table-layout .setup-header,
+  body.is-wide-table-layout .table-stage,
+  body.is-wide-table-layout .asset-decor,
+  body.is-wide-table-layout .setup-ritual-panel,
+  body.is-wide-table-layout .message-feed-panel,
+  body.is-wide-table-layout .owner-access-panel,
+  body.is-wide-table-layout .guest-message-panel,
+  body.is-wide-table-layout .setup-decor-actions,
+  body.is-wide-table-layout .setup-confirm-actions,
+  body.is-wide-table-layout .action-bar {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body.is-wide-table-layout .setup-step.is-active,
+  body.is-wide-table-layout .main-screen {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-content: start;
+    justify-items: stretch;
+    overflow: visible;
+  }
+
+  body.is-wide-table-layout .setup-step.is-active > .setup-content,
+  body.is-wide-table-layout .main-screen > .main-content {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: start;
+    justify-items: stretch;
+    overflow: visible;
+  }
+
+  body.is-wide-table-layout .setup-step.is-active .table-stage,
+  body.is-wide-table-layout .main-screen .table-stage {
+    align-self: start;
+    justify-self: stretch;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: var(--ui-line-width) solid #000;
+  }
+
+  body.is-wide-table-layout .asset-decor {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto;
+  }
+
+  body.is-wide-table-layout .asset-decor-panel.is-active {
+    height: var(--wide-third-area-height);
+    min-height: 0;
+    max-height: var(--wide-third-area-height);
+  }
+
+  body.is-wide-table-layout .setup-ritual-panel,
+  body.is-wide-table-layout .message-feed-panel,
+  body.is-wide-table-layout .owner-access-panel,
+  body.is-wide-table-layout .guest-message-panel {
+    height: var(--wide-third-area-tall-height);
+    min-height: var(--wide-third-area-tall-height);
+    max-height: var(--wide-third-area-tall-height);
+    align-self: start;
+    justify-self: stretch;
+  }
+
+  body.is-wide-table-layout .screen-footer,
+  body.is-wide-table-layout .setup-decor-actions,
+  body.is-wide-table-layout .setup-confirm-actions,
+  body.is-wide-table-layout .action-bar {
+    min-height: clamp(64px, 8dvh, 88px);
+  }
+
+  body.is-wide-table-layout .setup-decor-actions,
+  body.is-wide-table-layout .setup-confirm-actions,
+  body.is-wide-table-layout .action-bar {
+    padding: clamp(8px, 1.2dvh, 14px) var(--header-side-border-width);
+  }
+
+  body.is-wide-table-layout .asset-decor-tab,
+  body.is-wide-table-layout .message-feed-count,
+  body.is-wide-table-layout .message-item p,
+  body.is-wide-table-layout .owner-access-copy .owner-access-footnote,
+  body.is-wide-table-layout .guest-message-panel label,
+  body.is-wide-table-layout .guest-message-flight-card label,
+  body.is-wide-table-layout .guest-message-panel input,
+  body.is-wide-table-layout .guest-message-panel textarea,
+  body.is-wide-table-layout .guest-message-flight-card input,
+  body.is-wide-table-layout .guest-message-flight-card textarea {
+    font-size: clamp(14px, 2.25dvh, 22px);
+  }
+
+  body.is-wide-table-layout .setup-speech-bubble {
+    font-size: clamp(14px, 2.7dvh, 24px);
+  }
+
+  body.is-wide-table-layout .owner-access-copy p {
+    font-size: clamp(16px, 2.8dvh, 28px);
+  }
+
+  body.is-wide-table-layout .group-name-card.ritual-scroll {
+    --ritual-scroll-font-size: clamp(14px, 2.25dvh, 22px);
+  }
+
+  body.is-wide-table-layout .bg-palette {
+    grid-template-columns: repeat(5, minmax(54px, 92px));
+    grid-template-rows: repeat(3, minmax(42px, 1fr));
+    justify-content: center;
+    padding: clamp(12px, 2dvh, 18px) clamp(20px, 4dvh, 44px);
+    gap: clamp(10px, 2dvh, 20px) clamp(24px, 5dvh, 72px);
+  }
+
+  body.is-wide-table-layout .bg-swatch {
+    width: clamp(42px, 5dvh, 58px);
+  }
+
+  body.is-wide-table-layout .asset-dock {
+    --asset-dock-columns: 8;
+    grid-auto-rows: minmax(72px, 1fr);
+    padding: clamp(12px, 2dvh, 20px) clamp(18px, 4dvh, 40px);
+    row-gap: clamp(12px, 2.4dvh, 22px);
+    column-gap: clamp(14px, 3dvh, 28px);
+  }
+
+  body.is-wide-table-layout .screen-footer .main-invite-button {
+    width: min(56%, 360px);
+  }
+}

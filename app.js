@@ -272,9 +272,20 @@ function wireAppViewportHeight() {
 }
 
 function syncAppViewportHeight() {
+  syncWideTableLayout();
   forceRootScrollTop();
   requestAnimationFrame(syncKeyboardPanOffsets);
   requestAnimationFrame(syncActiveScreenScrollbars);
+}
+
+function syncWideTableLayout() {
+  const viewportWidth = Math.max(window.innerWidth, document.documentElement.clientWidth || 0);
+  const viewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight || 0);
+  const portraitAppWidth = viewportHeight * 0.5625;
+  document.body.classList.toggle(
+    "is-wide-table-layout",
+    viewportHeight >= 480 && viewportWidth >= 960 && viewportWidth >= portraitAppWidth * 2,
+  );
 }
 
 function resetAppViewportHeightLock() {
@@ -453,6 +464,8 @@ function wireRootScrollLock() {
 }
 
 function handleScrollableGesture(event, deltaX, deltaY) {
+  if (isRootScrollAllowed()) return;
+
   // Never suppress touches that land on a text field. iOS refuses to raise the
   // software keyboard when preventDefault() runs anywhere in the tap gesture,
   // even though focus still fires — so a tap with the slightest finger movement
@@ -489,11 +502,20 @@ function setGuestEntryView(isGuestEntry) {
 }
 
 function forceRootScrollTop() {
+  if (isRootScrollAllowed()) return;
+  scrollRootToTop();
+}
+
+function scrollRootToTop() {
   const scrollingElement = document.scrollingElement;
   if (scrollingElement) scrollingElement.scrollTop = 0;
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
   if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+}
+
+function isRootScrollAllowed() {
+  return document.body.classList.contains("is-wide-table-layout");
 }
 
 function isEditableTouchTarget(target) {
@@ -571,6 +593,7 @@ function wireGuestEntrySurfaceScrollLock(root) {
 }
 
 function lockGuestEntrySurfacePan(event) {
+  if (isRootScrollAllowed()) return;
   if (isEditableTouchTarget(event.target)) return;
   if (findScrollableTouchTarget(event.target)) return;
   if (isKeyboardPanActive() && findKeyboardScrollContainer(event.target)) return;
@@ -734,6 +757,7 @@ function renderSetup() {
   setGuestEntryView(false);
   setLoadingView(false);
   $app.replaceChildren(clone("setup-template"));
+  scrollRootToTop();
   const form = document.querySelector("[data-setup-form]");
   const table = state.table || {
     owner_name: "",
@@ -830,7 +854,7 @@ function renderSetup() {
       await loadData();
       renderMain();
     } catch (error) {
-      showToast(error.message || "고사상을 저장하지 못했습니다");
+      showToast(error.userMessage || error.message || "고사상을 저장하지 못했습니다");
     } finally {
       if (submitButton) submitButton.disabled = false;
       form.removeAttribute("aria-busy");
@@ -921,6 +945,7 @@ function showSetupStep(stepName) {
   document.querySelectorAll("[data-setup-step]").forEach((step) => {
     step.classList.toggle("is-active", step.dataset.setupStep === stepName);
   });
+  scrollRootToTop();
   syncDecorScrollbarSource();
   syncActiveScreenScrollbars();
 }
@@ -929,6 +954,7 @@ function renderMain() {
   setLoadingView(false);
   document.querySelectorAll(".guest-message-flight-card").forEach((item) => item.remove());
   $app.replaceChildren(clone("main-template"));
+  scrollRootToTop();
   fillRitualDates(state.table.date);
   const ownerMode = isOwnerMode();
   const showOwnerAccess = ownerMode && !state.ownerViewingMessages;
@@ -2179,7 +2205,7 @@ async function submitMessageForm(event) {
     state.guestSubmissionComplete = false;
     configureGuestActionButton();
     renderDecorationPreview(state.table.decoration, { openMouth: false });
-    showToast(error.message || "축원을 올리지 못했습니다");
+    showToast(error.userMessage || error.message || "축원을 올리지 못했습니다");
   }
 }
 
@@ -2545,14 +2571,14 @@ async function api(action, payload) {
 }
 
 function makeApiConnectionError(action, error) {
-  const messages = {
-    get: "고사상 정보를 불러오지 못했습니다",
+  const userMessages = {
     createOrUpdateTable: "고사상을 저장하지 못했습니다",
     addMessage: "축원을 올리지 못했습니다",
     acknowledgeOwnerNotice: "확인 상태를 저장하지 못했습니다",
   };
-  const requestError = new Error(`${messages[action] || "요청을 처리하지 못했습니다"}. 네트워크 상태를 확인하고 다시 시도해주세요`);
+  const requestError = new Error("Apps Script request failed");
   requestError.action = action;
+  requestError.userMessage = userMessages[action] || "";
   requestError.cause = error;
   return requestError;
 }
