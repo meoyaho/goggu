@@ -13,6 +13,7 @@ const CONFIG = {
 };
 const APPS_SCRIPT_GET_ATTEMPTS = 2;
 const APPS_SCRIPT_GET_TIMEOUT_MS = 20000;
+const APPS_SCRIPT_WRITE_TIMEOUT_MS = 20000;
 const APPS_SCRIPT_RETRY_DELAY_MS = 900;
 
 function getPublicBaseUrl() {
@@ -2183,15 +2184,22 @@ async function submitMessageForm(event) {
     showToast("축원이 올라갔어요");
   }, GUEST_MESSAGE_OFFER_MS);
 
+  const submittedMessage = {
+    table_id: tableId,
+    user_name: userName,
+    message,
+    created_at: new Date().toISOString(),
+    theme: form.dataset.messageTheme || "",
+  };
+
   try {
-    await api("addMessage", {
-      table_id: tableId,
-      user_name: userName,
-      message,
-      created_at: new Date().toISOString(),
-      theme: form.dataset.messageTheme || "",
-    });
-    await loadData();
+    await api("addMessage", submittedMessage);
+    try {
+      await loadData();
+    } catch (error) {
+      console.warn("[pig-head] message saved but reload failed", error);
+      appendSubmittedMessage(submittedMessage);
+    }
     if (state.guestViewingMessages) {
       renderMain();
     } else {
@@ -2205,6 +2213,20 @@ async function submitMessageForm(event) {
     state.guestSubmissionComplete = false;
     configureGuestActionButton();
     renderDecorationPreview(state.table.decoration, { openMouth: false });
+    try {
+      await loadData();
+      if (hasSubmittedMessage(submittedMessage)) {
+        if (state.guestViewingMessages) {
+          renderMain();
+        } else {
+          renderMessageFeed();
+        }
+        return;
+      }
+    } catch (reloadError) {
+      console.warn("[pig-head] message submit verification failed", reloadError);
+    }
+    console.warn("[pig-head] message submit failed", error);
     showToast(error.userMessage || error.message || "축원을 올리지 못했습니다");
   }
 }
@@ -2599,6 +2621,10 @@ async function requestAppsScript(action, url) {
     }
   }
 
+  if (action === "addMessage") {
+    return fetchJson(url, { timeoutMs: APPS_SCRIPT_WRITE_TIMEOUT_MS });
+  }
+
   return jsonpWithRetry(url);
 }
 
@@ -2735,6 +2761,20 @@ function normalizeMessage(message) {
     created_at: message.created_at || "",
     theme: message.theme || "",
   };
+}
+
+function hasSubmittedMessage(message) {
+  return state.messages.some((item) => (
+    item.table_id === message.table_id &&
+    item.user_name === message.user_name &&
+    item.message === message.message &&
+    item.theme === message.theme
+  ));
+}
+
+function appendSubmittedMessage(message) {
+  if (hasSubmittedMessage(message)) return;
+  state.messages = [...state.messages, normalizeMessage(message)];
 }
 
 function parseDecoration(value) {
