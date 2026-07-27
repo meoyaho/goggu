@@ -2257,6 +2257,11 @@ button {
   overflow-wrap: anywhere;
 }
 
+.connection-retry-button {
+  width: min(100%, 180px);
+  margin-top: 4px;
+}
+
 @media (min-width: 680px) and (hover: hover) and (pointer: fine) {
   :root {
     --content-width: min(100%, 56.25dvh);

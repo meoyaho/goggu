@@ -254,7 +254,7 @@ syncBrowserChromeColor();
 syncAppViewportHeight();
 wireAppViewportHeight();
 wireRootScrollLock();
-init();
+init().catch(handleInitialLoadError);
 
 function wireAppViewportHeight() {
   window.addEventListener("scroll", syncAppViewportHeight, { passive: true });
@@ -612,6 +612,44 @@ async function loadData() {
   }
 }
 
+function handleInitialLoadError(error) {
+  console.warn("[pig-head] initial load failed", error);
+  renderConnectionError(error);
+}
+
+function renderConnectionError(error) {
+  setGuestEntryView(false);
+  setLoadingView(true);
+  $app.innerHTML = `
+    <section class="screen empty-screen">
+      <div class="empty-state">
+        <div class="loading-layout empty-visual">
+          <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya">
+          <div class="loading-offering" aria-hidden="true">
+            <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
+          </div>
+          <strong>데이터 연결이 불안정합니다</strong>
+          <span>${getConnectionErrorMessage(error)}</span>
+          <button class="primary-action connection-retry-button" type="button" data-retry-load>다시 시도</button>
+        </div>
+      </div>
+      <p class="loading-copyright">Copyright. © meoya</p>
+    </section>
+  `;
+  document.querySelector("[data-retry-load]")?.addEventListener("click", () => {
+    renderLoading({
+      caption: hasOwnerAccessLink ? "상을 차리는 중입니다" : "귀한 클릭 감사드립니다",
+    });
+    init().catch(handleInitialLoadError);
+  });
+}
+
+function getConnectionErrorMessage(error) {
+  const message = clean(error?.message);
+  if (message && !message.includes("Apps Script request")) return message;
+  return "네트워크 상태를 확인하고 다시 시도해주세요";
+}
+
 function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
   setGuestEntryView(false);
   setLoadingView(true);
@@ -773,24 +811,34 @@ function renderSetup() {
     event.preventDefault();
     const formData = new FormData(form);
     const ownerName = clean(formData.get("owner_name"));
+    const submitButton = form.querySelector("[data-name-submit]");
     if (!ownerName) {
       syncGroupNameCompletionUi();
       showToast("모임명을 입력해주세요");
       return;
     }
 
-    renderLoading();
-    await api("createOrUpdateTable", {
-      table_id: tableId,
-      owner_token: ownerToken,
-      date: table.date || getRitualDateValue(),
-      owner_name: ownerName,
-      blessing: state.setupDecoration.wish || table.blessing || DEFAULT_BLESSING,
-      decoration_json: JSON.stringify(state.setupDecoration),
-    });
+    if (submitButton) submitButton.disabled = true;
+    form.setAttribute("aria-busy", "true");
 
-    await loadData();
-    renderMain();
+    try {
+      await api("createOrUpdateTable", {
+        table_id: tableId,
+        owner_token: ownerToken,
+        date: table.date || getRitualDateValue(),
+        owner_name: ownerName,
+        blessing: state.setupDecoration.wish || table.blessing || DEFAULT_BLESSING,
+        decoration_json: JSON.stringify(state.setupDecoration),
+      });
+
+      await loadData();
+      renderMain();
+    } catch (error) {
+      showToast(error.message || "고사상을 저장하지 못했습니다");
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+      form.removeAttribute("aria-busy");
+    }
   });
 }
 
@@ -2489,9 +2537,27 @@ async function api(action, payload) {
   }
 
   const query = new URLSearchParams({ action, ...payload });
-  const result = await jsonp(`${CONFIG.appsScriptUrl}?${query.toString()}`);
+  let result;
+  try {
+    result = await jsonp(`${CONFIG.appsScriptUrl}?${query.toString()}`);
+  } catch (error) {
+    throw makeApiConnectionError(action, error);
+  }
   if (result?.ok === false) throw new Error(result.error || "Request failed");
   return result;
+}
+
+function makeApiConnectionError(action, error) {
+  const messages = {
+    get: "고사상 정보를 불러오지 못했습니다",
+    createOrUpdateTable: "고사상을 저장하지 못했습니다",
+    addMessage: "축원을 올리지 못했습니다",
+    acknowledgeOwnerNotice: "확인 상태를 저장하지 못했습니다",
+  };
+  const requestError = new Error(`${messages[action] || "요청을 처리하지 못했습니다"}. 네트워크 상태를 확인하고 다시 시도해주세요`);
+  requestError.action = action;
+  requestError.cause = error;
+  return requestError;
 }
 
 function localApi(action, payload) {
@@ -2603,23 +2669,36 @@ function parseDecoration(value) {
   }
 }
 
-function jsonp(url) {
+function jsonp(url, { timeoutMs = 15000 } = {}) {
   return new Promise((resolve, reject) => {
     const callback = `pigHeadCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
     const separator = url.includes("?") ? "&" : "?";
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      fail(new Error("Apps Script request timed out"));
+    }, timeoutMs);
 
     window[callback] = (data) => {
+      if (settled) return;
+      settled = true;
       cleanup();
       resolve(data);
     };
 
     script.onerror = () => {
-      cleanup();
-      reject(new Error("Apps Script request failed"));
+      fail(new Error("Apps Script request failed"));
     };
 
+    function fail(error) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    }
+
     function cleanup() {
+      clearTimeout(timeoutId);
       delete window[callback];
       script.remove();
     }
