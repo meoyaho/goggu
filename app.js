@@ -842,19 +842,35 @@ function renderSetup() {
     if (submitButton) submitButton.disabled = true;
     form.setAttribute("aria-busy", "true");
 
-    try {
-      await api("createOrUpdateTable", {
-        table_id: tableId,
-        owner_token: ownerToken,
-        date: table.date || getRitualDateValue(),
-        owner_name: ownerName,
-        blessing: state.setupDecoration.wish || table.blessing || DEFAULT_BLESSING,
-        decoration_json: JSON.stringify(state.setupDecoration),
-      });
+    const submittedTable = {
+      table_id: tableId,
+      owner_token: ownerToken,
+      date: table.date || getRitualDateValue(),
+      owner_name: ownerName,
+      blessing: state.setupDecoration.wish || table.blessing || DEFAULT_BLESSING,
+      decoration_json: JSON.stringify(state.setupDecoration),
+    };
 
-      await loadData();
+    try {
+      await api("createOrUpdateTable", submittedTable);
+      try {
+        await loadData();
+      } catch (error) {
+        console.warn("[pig-head] table saved but reload failed", error);
+        applySubmittedTable(submittedTable);
+      }
       renderMain();
     } catch (error) {
+      try {
+        await loadData();
+        if (hasSubmittedTable(submittedTable)) {
+          renderMain();
+          return;
+        }
+      } catch (reloadError) {
+        console.warn("[pig-head] table save verification failed", reloadError);
+      }
+      console.warn("[pig-head] table save failed", error);
       showToast(error.userMessage || error.message || "고사상을 저장하지 못했습니다");
     } finally {
       if (submitButton) submitButton.disabled = false;
@@ -2621,7 +2637,7 @@ async function requestAppsScript(action, url) {
     }
   }
 
-  if (action === "addMessage") {
+  if (action === "createOrUpdateTable" || action === "addMessage") {
     return fetchJson(url, { timeoutMs: APPS_SCRIPT_WRITE_TIMEOUT_MS });
   }
 
@@ -2751,6 +2767,23 @@ function normalizeTable(table) {
     blessing: table.blessing || DEFAULT_BLESSING,
     decoration: parseDecoration(table.decoration_json),
   };
+}
+
+function hasSubmittedTable(table) {
+  const normalized = normalizeTable(table);
+  return Boolean(
+    state.table &&
+    normalized &&
+    state.table.table_id === normalized.table_id &&
+    state.table.owner_name === normalized.owner_name &&
+    state.table.blessing === normalized.blessing &&
+    JSON.stringify(state.table.decoration) === JSON.stringify(normalized.decoration),
+  );
+}
+
+function applySubmittedTable(table) {
+  state.table = normalizeTable(table);
+  state.canEdit = true;
 }
 
 function normalizeMessage(message) {
