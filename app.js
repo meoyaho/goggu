@@ -2439,9 +2439,9 @@ async function saveOwnerAccessLink() {
 
   state.ownerAccessLinkSaved = true;
   state.ownerViewingMessages = true;
-  const noticeSaved = await acknowledgeOwnerNotice();
+  await acknowledgeOwnerNotice();
   renderMain();
-  showToast(noticeSaved ? toastMessage : "주의문 확인 상태를 저장하지 못했습니다");
+  showToast(toastMessage);
 }
 
 async function shareOwnerAccessLink(link) {
@@ -2522,14 +2522,13 @@ async function inviteGuests() {
   const copied = await copyText(text);
 
   if (copied) {
-    const noticeSaved = await revealOwnerMessages();
-    showToast(noticeSaved ? "초대 링크를 복사했습니다" : "주의문 확인 상태를 저장하지 못했습니다");
+    await revealOwnerMessages();
+    showToast("초대 링크를 복사했습니다");
     return;
   }
 
   window.prompt("초대 링크를 복사해주세요", text);
-  const noticeSaved = await revealOwnerMessages();
-  if (!noticeSaved) showToast("주의문 확인 상태를 저장하지 못했습니다");
+  await revealOwnerMessages();
 }
 
 async function revealOwnerMessages() {
@@ -2612,7 +2611,6 @@ function makeApiConnectionError(action, error) {
   const userMessages = {
     createOrUpdateTable: "고사상을 저장하지 못했습니다",
     addMessage: "축원을 올리지 못했습니다",
-    acknowledgeOwnerNotice: "확인 상태를 저장하지 못했습니다",
   };
   const requestError = new Error("Apps Script request failed");
   requestError.action = action;
@@ -2637,7 +2635,7 @@ async function requestAppsScript(action, url) {
     }
   }
 
-  if (action === "createOrUpdateTable" || action === "addMessage") {
+  if (action === "createOrUpdateTable" || action === "addMessage" || action === "acknowledgeOwnerNotice") {
     return fetchJson(url, { timeoutMs: APPS_SCRIPT_WRITE_TIMEOUT_MS });
   }
 
@@ -2943,7 +2941,8 @@ async function acknowledgeOwnerNotice() {
       owner_token: ownerToken,
     });
     return true;
-  } catch {
+  } catch (error) {
+    console.warn("[pig-head] owner notice acknowledgement failed", error);
     return false;
   }
 }
