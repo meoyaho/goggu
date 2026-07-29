@@ -258,6 +258,7 @@ syncBrowserChromeColor();
 syncAppViewportHeight();
 wireAppViewportHeight();
 wireRootScrollLock();
+wireViewportZoomGuard();
 init().catch(handleInitialLoadError);
 
 function wireAppViewportHeight() {
@@ -462,6 +463,47 @@ function wireRootScrollLock() {
     target.addEventListener("touchmove", handleTouchMove, touchOptions);
     target.addEventListener("wheel", handleWheel, touchOptions);
   });
+}
+
+function wireViewportZoomGuard() {
+  const viewportMeta = document.querySelector('meta[name="viewport"]');
+  viewportMeta?.setAttribute(
+    "content",
+    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
+  );
+
+  let lastTapAt = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
+  const tapMaxDelay = 360;
+  const tapMaxDistance = 32;
+
+  const preventViewportGesture = (event) => {
+    preventScrollEvent(event);
+  };
+
+  ["gesturestart", "gesturechange", "gestureend"].forEach((eventName) => {
+    document.addEventListener(eventName, preventViewportGesture, { passive: false });
+  });
+
+  document.addEventListener("touchend", (event) => {
+    if (event.changedTouches.length !== 1) return;
+    if (isEditableTouchTarget(event.target)) return;
+
+    const touch = event.changedTouches[0];
+    const now = Date.now();
+    const tapDelay = now - lastTapAt;
+    const tapDistance = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
+    if (tapDelay > 0 && tapDelay < tapMaxDelay && tapDistance < tapMaxDistance) {
+      preventScrollEvent(event);
+      lastTapAt = 0;
+      return;
+    }
+
+    lastTapAt = now;
+    lastTapX = touch.clientX;
+    lastTapY = touch.clientY;
+  }, { passive: false, capture: true });
 }
 
 function handleScrollableGesture(event, deltaX, deltaY) {
