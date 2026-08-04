@@ -67,6 +67,16 @@ const FIXED_OWNER_TABLE_IDS = new Set([
   "t-2c62df856ff4c390",
   "t-0ed6fd8ec723da23",
   "t-64ee4f6069b3c1df",
+  "t-0aa6b3eab64e3048",
+  "t-323c719493695be1",
+  "t-fdb6a86d617940be",
+  "t-1d9d39dee3875d6e",
+  "t-5508c6fa03f77dff",
+  "t-62a4095ea4d359ce",
+  "t-24cde571a151196b",
+  "t-c74f380b30c49843",
+  "t-bac7da9fc8442aa0",
+  "t-1c2e9c3608ccdf47",
 ]);
 const DEFAULT_BLESSING = "사고 없이 대박 기원";
 const DEFAULT_BG_OUTER = "#aaff4d";
