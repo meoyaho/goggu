@@ -11,8 +11,8 @@ const CONFIG = {
   appsScriptUrl: APPS_SCRIPT_URL,
   publicBaseUrl: getPublicBaseUrl(),
 };
-const APPS_SCRIPT_GET_ATTEMPTS = 2;
-const APPS_SCRIPT_GET_TIMEOUT_MS = 20000;
+const APPS_SCRIPT_GET_ATTEMPTS = 1;
+const APPS_SCRIPT_GET_TIMEOUT_MS = 10000;
 const APPS_SCRIPT_WRITE_TIMEOUT_MS = 20000;
 const APPS_SCRIPT_RETRY_DELAY_MS = 900;
 
@@ -703,9 +703,9 @@ function renderConnectionError() {
     <section class="screen empty-screen">
       <div class="empty-state">
         <div class="loading-layout empty-visual">
-          <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya">
+          <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya" decoding="async" fetchpriority="high">
           <div class="loading-offering" aria-hidden="true">
-            <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
+            <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="" decoding="async" fetchpriority="high">
           </div>
           <strong>데이터 연결이 불안정합니다</strong>
           <button class="primary-action connection-retry-button" type="button" data-retry-load>다시 시도</button>
@@ -728,9 +728,9 @@ function renderLoading({ caption = "상을 차리는 중입니다" } = {}) {
   $app.innerHTML = `
     <section class="screen loading-screen" data-loading-screen>
       <div class="loading-layout">
-        <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya">
+        <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya" decoding="async" fetchpriority="high">
         <div class="loading-offering" aria-hidden="true">
-          <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
+          <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="" decoding="async" fetchpriority="high">
           <div class="loading-candy-stack" data-loading-candy-stack></div>
         </div>
         <p class="loading-caption">${caption}</p>
@@ -776,6 +776,7 @@ function startLoadingCandyStack() {
       candy.className = `loading-candy loading-candy-${index}`;
       candy.src = LOADING_CANDY_ASSETS[color];
       candy.alt = "";
+      candy.decoding = "async";
       layer.append(candy);
     });
 
@@ -794,9 +795,9 @@ function renderEmpty() {
     <section class="screen empty-screen">
       <div class="empty-state">
         <div class="loading-layout empty-visual">
-          <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya">
+          <img class="loading-logo" src="${LOADING_LOGO_ASSET}" alt="meoya" decoding="async" fetchpriority="high">
           <div class="loading-offering" aria-hidden="true">
-            <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="">
+            <img class="loading-bowl" src="${LOADING_BOWL_ASSET}" alt="" decoding="async" fetchpriority="high">
           </div>
           <strong>아직 차려지지 않은 상입니다</strong>
         </div>
@@ -1916,6 +1917,7 @@ function makeDecorImage(src) {
   image.className = "decor-image";
   image.src = src;
   image.alt = "";
+  image.decoding = "async";
   image.draggable = false;
   return image;
 }
@@ -2673,18 +2675,16 @@ function makeApiConnectionError(action, error) {
 
 async function requestAppsScript(action, url) {
   if (action === "get") {
-    try {
-      return await fetchJsonWithRetry(url, {
+    return firstSuccessful([
+      jsonpWithRetry(url, {
         attempts: APPS_SCRIPT_GET_ATTEMPTS,
         timeoutMs: APPS_SCRIPT_GET_TIMEOUT_MS,
-      });
-    } catch (error) {
-      console.warn("[pig-head] fetch failed, falling back to JSONP", error);
-      return jsonpWithRetry(url, {
+      }),
+      fetchJsonWithRetry(url, {
         attempts: APPS_SCRIPT_GET_ATTEMPTS,
         timeoutMs: APPS_SCRIPT_GET_TIMEOUT_MS,
-      });
-    }
+      }),
+    ]);
   }
 
   if (action === "createOrUpdateTable" || action === "addMessage" || action === "acknowledgeOwnerNotice") {
@@ -2692,6 +2692,23 @@ async function requestAppsScript(action, url) {
   }
 
   return jsonpWithRetry(url);
+}
+
+function firstSuccessful(promises) {
+  return new Promise((resolve, reject) => {
+    let failureCount = 0;
+    let lastError;
+
+    promises.forEach((promise) => {
+      Promise.resolve(promise)
+        .then(resolve)
+        .catch((error) => {
+          failureCount += 1;
+          lastError = error;
+          if (failureCount === promises.length) reject(lastError);
+        });
+    });
+  });
 }
 
 async function fetchJsonWithRetry(url, { attempts = 1, timeoutMs } = {}) {
